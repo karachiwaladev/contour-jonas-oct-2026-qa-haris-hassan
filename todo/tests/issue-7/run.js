@@ -352,6 +352,28 @@ async function e2e() {
       return T.titles();`);
     check("TC-38", "an older redraw cannot overwrite a newer one", JSON.stringify(r) === '["Real"]', JSON.stringify(r));
 
+    r = await ev(`await T.reset(); await T.add("Loss", T.ymd(0), "", "daily");
+      const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
+      const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.stopRepeating(B);
+      await TodoDB.setDone(A, false); await TodoDB.setDone(A, true); await TodoDB.setDone(A, false);
+      const b = (await T.all()).find(t => t.id === B); return { bExists: !!b, bOpen: !!b && !b.done, total: (await T.all()).length };`);
+    check("TC-39", "reopening never deletes a separate task (data loss)", r.bExists && r.bOpen && r.total === 2, JSON.stringify(r));
+
+    r = await ev(`await T.reset(); const realAdd = TodoDB.add;
+      TodoDB.add = async (...a) => { await T.wait(300); return realAdd.apply(TodoDB, a); };
+      const f = document.getElementById("new-task"), i = document.getElementById("task-title");
+      i.value = "Buy milk"; f.requestSubmit(); f.requestSubmit(); await T.wait(700);
+      TodoDB.add = realAdd; return (await T.all()).filter(t => t.title === "Buy milk").length;`);
+    check("TC-40", "fast double submit adds the task once", r === 1, String(r));
+
+    r = await ev(`await T.reset(); const realAdd = TodoDB.add;
+      TodoDB.add = async (...a) => { await T.wait(300); return realAdd.apply(TodoDB, a); };
+      const f = document.getElementById("new-task"), i = document.getElementById("task-title");
+      i.value = "Buy milk"; f.requestSubmit(); await T.wait(50); i.value = "Call mom"; await T.wait(600);
+      TodoDB.add = realAdd; const kept = i.value; i.value = "";
+      return { titles: T.titles(), kept };`);
+    check("TC-41", "typing during an in-flight add is kept", JSON.stringify(r.titles) === '["Buy milk"]' && r.kept === "Call mom", JSON.stringify(r));
+
     await seed(3, [
       { title: "Tags", done: false, createdAt: 1, due: null, tags: [null, {}, 5, "ok", true, ["x"]], repeat: "none", anchorDay: null }]);
     await open();

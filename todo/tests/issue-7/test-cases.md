@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. Run all automated cases with `node todo/tests/issue-7/run.js`; see *How to run* below.
 
-**Status:** TC-01–TC-25 were executed on `8fa311f` (25/25 passed). TC-26–TC-29 were added after the code review of PR #11 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-30–TC-31 were added after the second code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (2 cases). TC-32–TC-35 were added after the third code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-36–TC-38 were added after the fourth code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (3 cases; numeric tags are kept as text).
+**Status:** TC-01–TC-25 were executed on `8fa311f` (25/25 passed). TC-26–TC-29 were added after the code review of PR #11 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-30–TC-31 were added after the second code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (2 cases). TC-32–TC-35 were added after the third code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-36–TC-38 were added after the fourth code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (3 cases; numeric tags are kept as text). TC-39–TC-41 were added after the fifth code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (3 cases).
 
 **Dates** are relative to the day the suite runs: `T` is today, `T+3` is three days from today. Fixed calendar dates appear only in the unit cases (month-end, leap year, year boundary).
 
@@ -46,6 +46,9 @@ Written from the approved plan **before** implementation. Run all automated case
 | TC-36 | Tampered tag values are dropped (code review round 4 #4) | Security | A stored task with tags `[null, {}, 5, "ok", true, ["x"]]` | Load the page | Only `#5` and `#ok` chips appear: numbers are kept as text; null, objects, booleans and arrays are dropped | e2e | ⏳ |
 | TC-37 | The error box clears once loading works again (code review round 4 #2) | Regression | Loading fails once and the error shows | Storage recovers; click the **Active** filter | The error box is hidden and the list loads | e2e | ⏳ |
 | TC-38 | An older redraw cannot overwrite a newer one (code review round 4 #3) | Regression | A task "Real" exists | Start a redraw whose read is slow and returns stale data, then a normal redraw | The list shows "Real" (the newest redraw wins), not the stale result | e2e | ⏳ |
+| TC-39 | Reopening never deletes a separate task (code review round 5 #1, data loss) | Regression | Daily A due `T` | Tick A (creates B); press **Stop repeating** on B; untick A; tick A; untick A | B still exists and is open; no task is deleted | e2e | ⏳ |
+| TC-40 | No duplicate add on a fast double submit (code review round 5 #4) | Regression | Saving a task is slow | Submit "Buy milk" twice quickly | Exactly one "Buy milk" task | e2e | ⏳ |
+| TC-41 | Typing during a save is kept (code review round 5 #4) | Regression | Saving a task is slow | Submit "Buy milk", then type "Call mom" while it saves | "Buy milk" is added and the input still holds "Call mom" | e2e | ⏳ |
 
 ## How to run
 
