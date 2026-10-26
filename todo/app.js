@@ -1,4 +1,7 @@
 // UI for the todo app: create, complete, delete and filter tasks stored in TodoDB.
+// Everything lives in this closure, so the "user" token (see USER) can only be
+// used by the page's own handlers; render and renderActivity are exposed at the end.
+(() => { // app scope
 
 const form = document.getElementById("new-task");
 const input = document.getElementById("task-title");
@@ -33,8 +36,10 @@ function clearError(source) {
   if (!source || errorBox.dataset.source === source) errorBox.hidden = true;
 }
 
-// Everything done through the page is logged as the user's action.
-const USER = { actor: "user" };
+// Everything done through the page is logged as the user's action. The token
+// is claimed once and lives only in this closure, so scripts calling TodoDB
+// directly can't pass it (they are logged as "api").
+const USER = TodoDB.claimUserToken();
 
 // Run a storage action from a click, then redraw from what is actually stored.
 // A failure is shown on the page (e.g. "close other tabs" during an upgrade),
@@ -235,7 +240,10 @@ function activityRow(entry) {
     span.textContent = value; // entries are untrusted storage: text only
     return span;
   };
-  const time = typeof entry.ts === "string" ? entry.ts.slice(11, 19) : "";
+  const when = new Date(entry.ts);
+  const pad = (n) => String(n).padStart(2, "0");
+  const time = Number.isNaN(when.getTime()) ? "" // local time, like the rest of the app
+    : `${pad(when.getHours())}:${pad(when.getMinutes())}:${pad(when.getSeconds())}`;
   const who = `${entry.actor === "user" ? "user" : "api"}${entry.automated === true ? " 🤖" : ""}`;
   let changes = "";
   try { changes = entry.changes && Object.keys(entry.changes).length ? JSON.stringify(entry.changes) : ""; } catch {}
@@ -250,26 +258,37 @@ function activityRow(entry) {
 }
 
 // Newest first, at most ACTIVITY_ROWS rows; the heading shows the total.
+// Reads only those rows and a count, not the whole log. Never throws: the
+// log is best-effort, so if it can't be read the panel just stays as it was.
 async function renderActivity() {
   const seq = ++activitySeq;
-  const entries = await TodoLog.all();
+  let rows, total;
+  try {
+    [rows, total] = await Promise.all([TodoLog.recent(ACTIVITY_ROWS), TodoLog.count()]);
+  } catch {
+    return;
+  }
   if (seq !== activitySeq) return;
-  activitySummary.textContent = `Activity log (${entries.length})`;
-  activityEmpty.hidden = entries.length > 0;
-  activityList.replaceChildren(...entries.slice(-ACTIVITY_ROWS).reverse().map(activityRow));
+  activitySummary.textContent = `Activity log (${total})`;
+  activityEmpty.hidden = total > 0;
+  activityList.replaceChildren(...rows.map(activityRow));
 }
 
 activity.addEventListener("toggle", () => { if (activity.open) renderActivity(); });
 
 document.getElementById("log-export").addEventListener("click", async () => {
-  const text = await TodoLog.exportJSONL();
-  const url = URL.createObjectURL(new Blob([text ? text + "\n" : ""], { type: "application/x-ndjson" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = `todo-log-${today()}.jsonl`;
-  link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  TodoLog.log({ action: "log.export", actor: "user", changes: { entries: text ? text.split("\n").length : 0 } });
+  try {
+    const text = await TodoLog.exportJSONL();
+    const url = URL.createObjectURL(new Blob([text ? text + "\n" : ""], { type: "application/x-ndjson" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `todo-log-${today()}.jsonl`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    TodoLog.log({ action: "log.export", actor: "user", changes: { entries: text ? text.split("\n").length : 0 } });
+  } catch (err) {
+    showError("export the activity log", err, "action");
+  }
   renderActivity();
 });
 
@@ -320,3 +339,8 @@ tagFilter.addEventListener("change", () => {
 });
 
 render();
+
+// Exposed for tests and tooling (they redraw after changing data directly).
+window.render = render;
+window.renderActivity = renderActivity;
+})();

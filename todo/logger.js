@@ -42,9 +42,11 @@ const TodoLog = (() => {
           resolve(null);
           return;
         }
+        let gaveUp = false;
         req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
         req.onsuccess = () => {
           const db = req.result;
+          if (gaveUp) { db.close(); return; } // a late open after a block: don't leave it dangling
           db.onversionchange = () => { db.close(); dbPromise = null; };
           resolve(db);
         };
@@ -53,23 +55,34 @@ const TodoLog = (() => {
           unavailable = true;
           resolve(null);
         };
-        req.onblocked = () => { dbPromise = null; resolve(null); };
+        // Another tab holds an older version: skip logging for now, try again later.
+        req.onblocked = () => { gaveUp = true; dbPromise = null; resolve(null); };
       });
     }
     return dbPromise;
   }
 
   // Run `work(store)` in one transaction; resolves with the request's result.
-  async function tx(mode, work) {
+  // If the connection was closed under us (another tab upgraded or deleted the
+  // log database), reopen once and retry.
+  async function tx(mode, work, retried = false) {
     const db = await openDb();
     if (!db) return undefined;
-    return new Promise((resolve, reject) => {
-      const t = db.transaction(STORE, mode);
-      const req = work(t.objectStore(STORE));
-      t.oncomplete = () => resolve(req ? req.result : undefined);
-      t.onerror = (e) => { if (e && e.preventDefault) e.preventDefault(); reject(t.error); };
-      t.onabort = () => reject(t.error);
-    });
+    try {
+      return await new Promise((resolve, reject) => {
+        const t = db.transaction(STORE, mode); // throws InvalidStateError on a closed connection
+        const req = work(t.objectStore(STORE));
+        t.oncomplete = () => resolve(req ? req.result : undefined);
+        t.onerror = (e) => { if (e && e.preventDefault) e.preventDefault(); reject(t.error); };
+        t.onabort = () => reject(t.error);
+      });
+    } catch (err) {
+      if (!retried && err && err.name === "InvalidStateError") {
+        dbPromise = null;
+        return tx(mode, work, true);
+      }
+      throw err;
+    }
   }
 
   // Queue a write. Failures are swallowed: logging must never break the app.
@@ -124,6 +137,25 @@ const TodoLog = (() => {
     async all() {
       await chain;
       return (await tx("readonly", (s) => s.getAll())) || [];
+    },
+    // The newest `n` entries, newest first, without reading the whole log.
+    async recent(n) {
+      await chain;
+      return (await tx("readonly", (s) => {
+        const out = [];
+        const req = s.openCursor(null, "prev");
+        req.onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (!cursor || out.length >= n) return;
+          out.push(cursor.value);
+          cursor.continue();
+        };
+        return { get result() { return out; } }; // tx() resolves with .result after commit
+      })) || [];
+    },
+    async count() {
+      await chain;
+      return (await tx("readonly", (s) => s.count())) || 0;
     },
     async exportJSONL() {
       return (await this.all()).map((e) => JSON.stringify(e)).join("\n");

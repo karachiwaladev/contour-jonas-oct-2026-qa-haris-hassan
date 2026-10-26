@@ -5,11 +5,9 @@
 //   SCREENSHOTS=<dir> node ... run.js         # also save screenshots of key states
 // Needs Node 18+, Python 3 (static server) and Chrome (CHROME_PATH to override).
 
-const { spawn } = require("child_process");
 const fs = require("fs");
-const net = require("net");
-const os = require("os");
 const path = require("path");
+const { startBrowser } = require("../lib/harness");
 
 const TODO_DIR = path.resolve(__dirname, "..", "..");
 const results = [];
@@ -18,7 +16,6 @@ const collected = new Map();
 let collect = async () => {};
 const check = (id, name, cond, detail = "") =>
   results.push({ id, ok: !!cond, line: `${cond ? "PASS" : "FAIL"} ${id} ${name}${!cond && detail ? " :: " + detail : ""}` });
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------------------------------------------------------------- unit
 function unit() {
@@ -81,53 +78,12 @@ function unit() {
 }
 
 // ---------------------------------------------------------------- e2e
-function findChrome() {
-  const c = [process.env.CHROME_PATH,
-    "C:/Program Files/Google/Chrome/Application/chrome.exe",
-    "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"].filter(Boolean);
-  return c.find((p) => fs.existsSync(p));
-}
-const freePort = () => new Promise((res) => { const s = net.createServer(); s.listen(0, "127.0.0.1", () => { const p = s.address().port; s.close(() => res(p)); }); });
-
 async function e2e() {
-  const chromePath = findChrome();
-  if (!chromePath) { check("E2E", "Chrome found", false, "set CHROME_PATH"); return; }
-  const httpPort = await freePort(), cdpPort = await freePort();
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), "todo-issue7-"));
   const shotsDir = process.env.SCREENSHOTS;
-  const python = process.platform === "win32" ? "python" : "python3";
-  const server = spawn(python, ["-m", "http.server", String(httpPort), "--bind", "127.0.0.1", "--directory", TODO_DIR], { stdio: "ignore" });
-  const chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", `--remote-debugging-port=${cdpPort}`,
-    `--user-data-dir=${profile}`, "--no-first-run", "--window-size=760,900", "about:blank"], { stdio: "ignore" });
-  const BASE = `http://127.0.0.1:${httpPort}`;
-  const consoleErrors = [];
-  let ws;
+  let b;
+  try { b = await startBrowser({ shotsDir }); } catch (e) { check("E2E", "browser starts", false, e.message); return; }
+  const { nav, ev, shot, consoleErrors } = b;
   try {
-    for (let i = 0; i < 50; i++) { try { await (await fetch(BASE + "/index.html")).text(); break; } catch { await sleep(200); } }
-    let targets = [];
-    for (let i = 0; i < 50 && !targets.length; i++) { try { targets = (await (await fetch(`http://127.0.0.1:${cdpPort}/json/list`)).json()).filter((t) => t.type === "page"); } catch {} if (!targets.length) await sleep(200); }
-    ws = new WebSocket(targets[0].webSocketDebuggerUrl);
-    await new Promise((r) => (ws.onopen = r));
-    let nextId = 1; const pending = new Map(); const waiters = [];
-    ws.onmessage = (m) => {
-      const msg = JSON.parse(m.data);
-      if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); return; }
-      if (msg.method === "Runtime.consoleAPICalled" && ["error", "warning"].includes(msg.params.type))
-        consoleErrors.push(msg.params.type + ": " + msg.params.args.map((a) => a.value ?? a.description).join(" "));
-      if (msg.method === "Runtime.exceptionThrown") consoleErrors.push("exception: " + (msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text));
-      if (msg.method === "Log.entryAdded" && msg.params.entry.level === "error" && !/favicon/.test(msg.params.entry.url || "")) consoleErrors.push("log: " + msg.params.entry.text);
-      for (const w of waiters.splice(0)) if (w.method === msg.method) w.resolve(); else waiters.push(w);
-    };
-    const send = (method, params = {}) => new Promise((resolve, reject) => { const id = nextId++; pending.set(id, (msg) => (msg.error ? reject(new Error(method + ": " + msg.error.message)) : resolve(msg.result))); ws.send(JSON.stringify({ id, method, params })); });
-    const waitFor = (method) => new Promise((resolve) => waiters.push({ method, resolve }));
-    await send("Page.enable"); await send("Runtime.enable"); await send("Log.enable");
-    await send("Emulation.setDeviceMetricsOverride", { width: 760, height: 900, deviceScaleFactor: 1, mobile: false });
-    const nav = async (url) => { const loaded = waitFor("Page.loadEventFired"); await send("Page.navigate", { url: BASE + url }); await loaded; await sleep(400); };
-    const ev = async (expr) => { const r = await send("Runtime.evaluate", { expression: `(async () => { ${expr} })()`, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text); return r.result.value; };
-    const shot = async (name) => { if (!shotsDir) return; fs.mkdirSync(shotsDir, { recursive: true }); const { cssContentSize } = await send("Page.getLayoutMetrics"); const { data } = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width: 760, height: Math.ceil(Math.max(cssContentSize.height, 600)), scale: 1 } }); fs.writeFileSync(path.join(shotsDir, name), Buffer.from(data, "base64")); };
-
     // Seed IndexedDB at a given schema version with raw records (bypasses the app).
     // Runs on a blank same-origin page so the app isn't holding the database open.
     const seed = async (version, records) => { await nav("/tests/issue-7/blank.html"); return ev(`
@@ -457,9 +413,7 @@ async function e2e() {
     const unexpected = consoleErrors.filter((m) => !/TC-3[57] injected failure/.test(m));
     check("TC-24", "no console errors or exceptions", unexpected.length === 0, unexpected.join(" | "));
     await collect();
-    try { ws && ws.close(); } catch {}
-    chrome.kill(); server.kill();
-    await sleep(300); try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
+    await b.close();
   }
 }
 

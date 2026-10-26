@@ -1,11 +1,11 @@
 # Eval report: issue-14
 
-**Result: FAIL**. 21 passed, 1 not executed, 1 incomplete, 6 unit, 3 skipped. 126 log entries read, 0 malformed, 0 unknown case tags.
-Generated 2026-10-26T11:21:30.723Z.
+**Result: PASS**. 23 passed, 0 not executed, 0 incomplete, 6 unit, 3 skipped. 127 log entries read, 0 malformed, 0 unknown case tags.
+Generated 2026-10-26T11:25:06.243Z.
 
 | Case | Auto | Status | Missing actions / note |
 |------|------|--------|------------------------|
-| TC-01 | e2e | ❌ not-executed | missing: task.add |
+| TC-01 | e2e | ✅ pass |  |
 | TC-02 | e2e | ✅ pass |  |
 | TC-03 | e2e | ✅ pass |  |
 | TC-04 | e2e | ✅ pass |  |
@@ -17,7 +17,7 @@ Generated 2026-10-26T11:21:30.723Z.
 | TC-10 | e2e | ✅ pass |  |
 | TC-11 | e2e | ✅ pass |  |
 | TC-12 | e2e | ✅ pass |  |
-| TC-13 | e2e | ❌ incomplete | missing: task.add:error |
+| TC-13 | e2e | ✅ pass |  |
 | TC-14 | e2e | ✅ pass |  |
 | TC-15 | e2e | ✅ pass |  |
 | TC-16 | e2e | ➖ skipped | logging is made unavailable in this case on purpose, so it can leave no entries |

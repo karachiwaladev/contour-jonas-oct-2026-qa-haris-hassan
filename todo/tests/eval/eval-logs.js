@@ -8,8 +8,9 @@
 //
 // - spec: the test-case table (needs "ID" and "Auto" columns). Cases with Auto
 //   "unit" do nothing in the app, so they are listed as "unit", not judged.
-// - expected: { "TC-03": ["task.add", ...] }   every action must appear among
-//   the entries tagged TC-03; []  = it only has to have run;
+// - expected: { "TC-03": ["task.add", ...] }   every action must appear (with
+//   outcome ok) among the entries tagged TC-03; "task.add:error" matches a
+//   failed task.add instead; []  = it only has to have run;
 //   { "skip": reason }  = can't be judged from the log;
 //   { "sameRunAs": "TC-08", "actions": [...] } = checked within another case's entries.
 // - log: one JSON object per line; lines that aren't JSON objects with an
@@ -58,11 +59,15 @@ function parseLog(logText) {
 function evaluate({ logText, specText, expected = {} }) {
   const spec = parseSpec(specText);
   const { entries, malformed } = parseLog(logText);
+  // Per case, the actions seen. A failed action is recorded as "<action>:error",
+  // so it never satisfies an expectation of the plain action (a failed add is
+  // not an add); a case that is meant to fail expects "<action>:error".
+  // Any tagged entry, failed or not, shows the case ran.
   const byCase = new Map();
   for (const e of entries) {
     if (typeof e.testCase !== "string") continue;
     if (!byCase.has(e.testCase)) byCase.set(e.testCase, new Set());
-    byCase.get(e.testCase).add(e.action);
+    byCase.get(e.testCase).add(e.outcome === "error" ? `${e.action}:error` : e.action);
   }
 
   const judge = (id, need) => {

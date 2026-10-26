@@ -1,6 +1,6 @@
 {
   "suite": "issue-7",
-  "generatedAt": "2026-10-26T11:16:31.977Z",
+  "generatedAt": "2026-10-26T11:25:35.821Z",
   "ok": true,
   "summary": {
     "cases": 42,
@@ -411,7 +411,7 @@
       "status": "pass",
       "missing": [],
       "actions": [
-        "task.add",
+        "task.add:error",
         "task.delete",
         "test.case_start"
       ]

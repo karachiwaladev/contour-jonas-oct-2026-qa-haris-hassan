@@ -129,13 +129,20 @@ const TodoDB = (() => {
     };
   }
 
+  // "user" attribution needs this private token, which the page's own UI
+  // (app.js) claims once at startup and keeps in a closure. A script or AI
+  // agent calling TodoDB directly, even with { actor: "user" }, is logged as
+  // "api". (Code driving the page's buttons is still "user"; the log's
+  // `automated` flag marks browsers under automation.)
+  let userToken = null;
+  const actorOf = (meta) => (userToken !== null && meta === userToken ? "user" : "api");
+
   // Run a change and record it in the action log (TodoLog, if loaded).
   // `work(events)` fills `events` from inside the transaction; they are logged
   // only after it commits. A failure is logged once with outcome "error" and
   // marked (`err.logged`) so the UI layer doesn't log it again.
-  // `meta.actor` is "user" when the page did it; anything else is "api".
   async function logged(meta, failure, work) {
-    const actor = meta && meta.actor === "user" ? "user" : "api";
+    const actor = actorOf(meta);
     const log = typeof TodoLog !== "undefined" ? TodoLog.log : () => {};
     const events = [];
     try {
@@ -153,6 +160,12 @@ const TodoDB = (() => {
 
   return {
     normalizeTags,
+    // For the page's UI only: the first caller gets the token, later callers null.
+    claimUserToken() {
+      if (userToken !== null) return null;
+      userToken = Object.freeze({});
+      return userToken;
+    },
     all: async () => (await run("readonly", (s) => s.getAll())).map(clean),
     add(title, { due = null, tags = [], repeat = "none" } = {}, meta) {
       const kind = R.normalizeRepeat(repeat);
@@ -251,11 +264,17 @@ const TodoDB = (() => {
       );
     },
 
+    // Deleting a task that isn't there succeeds in IndexedDB but logs nothing.
     remove(id, meta) {
-      return logged(meta, { action: "task.delete", taskId: id }, async (events) => {
-        await run("readwrite", (s) => s.delete(id));
-        events.push({ action: "task.delete", taskId: id, changes: {} });
-      });
+      return logged(meta, { action: "task.delete", taskId: id }, (events) =>
+        run("readwrite", (store) => {
+          store.get(id).onsuccess = (e) => {
+            if (!e.target.result) return;
+            store.delete(id);
+            events.push({ action: "task.delete", taskId: id, changes: {} });
+          };
+        })
+      );
     },
   };
 })();

@@ -1,15 +1,15 @@
 {
   "suite": "issue-14",
-  "generatedAt": "2026-10-26T11:21:30.723Z",
-  "ok": false,
+  "generatedAt": "2026-10-26T11:25:06.243Z",
+  "ok": true,
   "summary": {
     "cases": 32,
-    "pass": 21,
+    "pass": 23,
     "unit": 6,
     "skipped": 3,
-    "notExecuted": 1,
-    "incomplete": 1,
-    "entries": 126,
+    "notExecuted": 0,
+    "incomplete": 0,
+    "entries": 127,
     "malformed": 0,
     "unknown": 0
   },
@@ -17,9 +17,11 @@
     {
       "id": "TC-01",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.add"
+      "status": "pass",
+      "missing": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
       ]
     },
     {
@@ -146,12 +148,10 @@
     {
       "id": "TC-13",
       "auto": "e2e",
-      "status": "incomplete",
-      "missing": [
-        "task.add:error"
-      ],
+      "status": "pass",
+      "missing": [],
       "actions": [
-        "task.add",
+        "task.add:error",
         "test.case_start"
       ]
     },
@@ -285,7 +285,6 @@
       "status": "pass",
       "missing": [],
       "actions": [
-        "task.delete",
         "test.case_start"
       ]
     },
