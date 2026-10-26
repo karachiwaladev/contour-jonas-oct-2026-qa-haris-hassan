@@ -75,7 +75,9 @@ const TodoDB = (() => {
       const tx = db.transaction(STORE, mode);
       const req = work(tx.objectStore(STORE));
       tx.oncomplete = () => resolve(req ? req.result : undefined);
-      tx.onerror = () => reject(tx.error);
+      // A failed request's error event bubbles here before the abort, while
+      // tx.error is still null, so take the error from the event itself.
+      tx.onerror = (e) => reject(e.target.error || tx.error || new Error("IndexedDB request failed"));
       tx.onabort = () => reject(tx.error || new Error("IndexedDB transaction aborted"));
     });
   }
@@ -87,6 +89,9 @@ const TodoDB = (() => {
     const list = Array.isArray(input) ? input : String(input || "").split(",");
     const seen = new Set();
     for (const raw of list) {
+      // Only text (and finite numbers, kept as text) can be a tag; null,
+      // objects, arrays and booleans in tampered storage are dropped.
+      if (typeof raw !== "string" && !(typeof raw === "number" && Number.isFinite(raw))) continue;
       const tag = String(raw).trim().toLowerCase().slice(0, 30);
       if (tag) seen.add(tag);
     }

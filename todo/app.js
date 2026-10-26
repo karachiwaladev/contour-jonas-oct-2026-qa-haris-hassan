@@ -19,11 +19,18 @@ const today = Recurrence.today;
 
 const errorBox = document.getElementById("error");
 
-// Tell the user (role=alert) and log the details.
-function showError(message, err) {
+// Tell the user (role=alert) and log the details. `source` is "action" or
+// "load", so a successful load clears only a load error, not an action's.
+function showError(what, err, source) {
+  const message = `Couldn't ${what}. ${err && err.message ? err.message : ""}`.trim();
   console.error(message, err);
   errorBox.textContent = message;
+  errorBox.dataset.source = source;
   errorBox.hidden = false;
+}
+
+function clearError(source) {
+  if (!source || errorBox.dataset.source === source) errorBox.hidden = true;
 }
 
 // Run a storage action from a click, then redraw from what is actually stored.
@@ -32,9 +39,9 @@ function showError(message, err) {
 async function act(what, fn) {
   try {
     await fn();
-    errorBox.hidden = true;
+    clearError();
   } catch (err) {
-    showError(`Couldn't ${what}. ${err && err.message ? err.message : ""}`.trim(), err);
+    showError(what, err, "action");
   }
   await render();
 }
@@ -166,14 +173,21 @@ function matches(task) {
   return true;
 }
 
+// Each render reads asynchronously; only the newest one may draw, so a slow,
+// older read can never overwrite a newer list.
+let renderSeq = 0;
+
 async function render() {
+  const seq = ++renderSeq;
   let tasks;
   try {
     tasks = await TodoDB.all();
   } catch (err) {
-    showError(`Couldn't load your tasks. ${err && err.message ? err.message : ""}`.trim(), err);
+    if (seq === renderSeq) showError("load your tasks", err, "load");
     return;
   }
+  if (seq !== renderSeq) return;
+  clearError("load");
   renderTagOptions(tasks);
   for (const b of statusButtons) b.setAttribute("aria-pressed", String(b.dataset.status === filters.status));
 
