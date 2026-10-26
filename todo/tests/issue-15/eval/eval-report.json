@@ -1,16 +1,16 @@
 {
   "suite": "issue-15",
-  "generatedAt": "2026-10-26T11:59:39.912Z",
-  "ok": true,
+  "generatedAt": "2026-10-26T12:03:58.840Z",
+  "ok": false,
   "summary": {
-    "cases": 25,
-    "pass": 23,
+    "cases": 30,
+    "pass": 25,
     "unit": 0,
     "skipped": 2,
     "notExecuted": 0,
-    "incomplete": 0,
+    "incomplete": 3,
     "unexpectedError": 0,
-    "entries": 119,
+    "entries": 147,
     "malformed": 0,
     "unknown": 0
   },
@@ -294,8 +294,10 @@
       "missing": [],
       "unexpected": [],
       "actions": [
+        "task.delete",
         "task.edit",
-        "test.case_start"
+        "test.case_start",
+        "ui.filter_priority"
       ]
     },
     {
@@ -309,6 +311,82 @@
       "auto": "e2e",
       "status": "skipped",
       "note": "a console check across the whole run, not an app action"
+    },
+    {
+      "id": "TC-26",
+      "auto": "e2e",
+      "status": "incomplete",
+      "missing": [
+        "task.become_oneoff@user"
+      ],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.copy_removed",
+        "task.delete",
+        "task.edit",
+        "task.reopen",
+        "task.spawn",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-27",
+      "auto": "e2e",
+      "status": "incomplete",
+      "missing": [
+        "task.edit:error@user"
+      ],
+      "unexpected": [],
+      "actions": [
+        "task.complete",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-28",
+      "auto": "e2e",
+      "status": "incomplete",
+      "missing": [
+        "task.add:error@api",
+        "task.edit@user"
+      ],
+      "unexpected": [
+        "task.edit:error"
+      ],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "task.edit:error",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-29",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.complete",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-30",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
+      ]
     }
   ],
   "malformed": [],

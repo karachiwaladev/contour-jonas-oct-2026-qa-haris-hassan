@@ -23,6 +23,15 @@
   "TC-21": ["task.edit@user", "task.spawn@user"],
   "TC-22": ["task.edit:error@api"],
   "TC-23": ["task.edit@user"],
-  "TC-24": { "skip": "runs the issue-7 and issue-14 suites in their own browsers; they write their own eval reports" },
-  "TC-25": { "skip": "a console check across the whole run, not an app action" }
+  "TC-24": {
+    "skip": "runs the issue-7 and issue-14 suites in their own browsers; they write their own eval reports"
+  },
+  "TC-25": {
+    "skip": "a console check across the whole run, not an app action"
+  },
+  "TC-26": ["task.edit@user", "task.become_oneoff@user"],
+  "TC-27": ["task.edit:error@user"],
+  "TC-28": ["task.add:error@api", "task.edit@user"],
+  "TC-29": ["task.complete@user"],
+  "TC-30": ["task.edit@user"]
 }

@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. This builds on #16 (the action log), so each end-to-end case is tagged in the log and checked by the eval. **Expected log** uses the eval syntax `action[:error][@actor]`; `expected-log.json` holds the same expectations for the eval.
 
-**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-26** (25 cases). Not executed yet.
+**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-26** (25 cases). TC-26–TC-30 were added after code-review round 1 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (5 cases). Not executed yet.
 
 `T` means today.
 
@@ -33,6 +33,11 @@ Written from the approved plan **before** implementation. This builds on #16 (th
 | TC-23 | HTML in an edited title shows as text | Security | — | Edit a title to `<img src=x onerror=window.pwned=1>`; Save | Shown as text; no `<img>` in the list; `window.pwned` unset | task.edit@user | e2e | ⏳ |
 | TC-24 | Existing suites still pass | Regression | — | Run `issue-7/run.js` and `issue-14/run.js` | Both pass in full, with their evals | — | e2e | ⏳ |
 | TC-25 | No console errors | Security / Regression | The whole issue-15 end-to-end run | Watch the console and exceptions | No unexpected errors | — | e2e | ⏳ |
+| TC-26 | An edited copy survives undo (code review #1) | Regression | Daily A due `T`, ticked (creates B) | Edit B: title "B edited", priority High; untick A | B is kept with its edits; A becomes a one-off (`repeat:"none"`) | task.edit@user, task.become_oneoff@user | e2e | ⏳ |
+| TC-27 | Saving an edit of a task that is gone tells you (code review #2) | Regression | An open task with the edit form open | Complete the task through the API, then press Save | The form shows "This task was completed or deleted"; nothing saved; logged as `task.edit` error | task.edit:error@user | e2e | ⏳ |
+| TC-28 | One title rule; long legacy titles stay editable (code review #3) | Regression | — | `TodoDB.add` with a 250-character title; then a stored legacy task with a 250-character title gets its priority edited | The add is rejected; the legacy task's priority edit saves (the title is only checked when it changes) | task.add:error@api, task.edit@user | e2e | ⏳ |
+| TC-29 | Unsaved edits survive re-renders (code review #4) | Regression | Tasks A and B | Edit A, type the title "Draft"; then tick B | A's form is still open and still shows "Draft" | task.complete@user | e2e | ⏳ |
+| TC-30 | One save at a time (code review #5) | Regression | An open edit form | Submit it twice quickly | Exactly one `task.edit` entry | task.edit@user | e2e | ⏳ |
 
 ## How to run (once implemented)
 

@@ -284,6 +284,74 @@ async function e2e() {
     check("TC-23", "edited HTML title renders as text", r.shown === "<img src=x onerror=window.pwned=1>" && !r.img && !r.pwned, JSON.stringify(r));
     await collect();
 
+    // TC-26 an edited copy survives undo of its parent
+    await ev(`await T.reset();`);
+    await tag("TC-26");
+    r = await ev(`const a = await T.add("Series A", { repeat: "daily", due: T.ymd(0) });
+      T.item(a).querySelector("input[type=checkbox]").click(); await T.wait();
+      const b = (await TodoDB.all()).find(t => t.title === "Series A" && !t.done).id;
+      await T.edit(b, { title: "B edited", priority: "high" });
+      T.item(a).querySelector("input[type=checkbox]").click(); await T.wait(); await TodoLog.flush();
+      const B = await T.get(b), A = await T.get(a); return { b: B && { title: B.title, p: B.priority, done: B.done }, aRepeat: A.repeat, aDone: A.done };`);
+    check("TC-26", "edited copy kept on undo; parent becomes one-off",
+      r.b && r.b.title === "B edited" && r.b.p === "high" && !r.b.done && r.aRepeat === "none" && !r.aDone, JSON.stringify(r));
+    await collect();
+
+    // TC-27 saving an edit of a task that was completed meanwhile
+    await ev(`await T.reset();`);
+    const idGone = await ev(`return await T.add("Gone soon");`);
+    await tag("TC-27");
+    r = await ev(`T.item(${idGone}).querySelector(".edit").click(); await T.wait(100);
+      const f = T.item(${idGone}).querySelector(".edit-form"); f.querySelector(".edit-title").value = "Changed";
+      await TodoDB.setDone(${idGone}, true);
+      f.querySelector(".edit-save").click(); await T.wait(300); await TodoLog.flush();
+      const g = document.querySelector(".edit-form"); const msg = g && g.querySelector(".edit-error");
+      const res = { msg: msg && !msg.hidden ? msg.textContent : null, title: (await T.get(${idGone})).title,
+        errs: (await T.entries("TC-27")).filter(e => e.action === "task.edit" && e.outcome === "error").map(e => e.actor) };
+      if (g) g.querySelector(".edit-cancel").click(); await T.wait(); return res;`);
+    check("TC-27", "edit of a completed/deleted task is rejected and shown",
+      /completed or deleted/i.test(r.msg || "") && r.title === "Gone soon" && JSON.stringify(r.errs) === '["user"]', JSON.stringify(r));
+    await collect();
+
+    // TC-28 one title rule; long legacy titles stay editable
+    await ev(`await T.reset();`);
+    await tag("TC-28");
+    r = await ev(`let addRejected = false; try { await TodoDB.add("x".repeat(250), {}); } catch { addRejected = true; }
+      const legacyId = await new Promise((res, rej) => { const q = indexedDB.open("todo-app"); q.onsuccess = () => { const db = q.result;
+        const tx = db.transaction("tasks", "readwrite"); const req = tx.objectStore("tasks").add({ title: "y".repeat(250), done: false, createdAt: Date.now(),
+          due: null, tags: [], repeat: "none", anchorDay: null, nextId: null, spawnedFrom: null, priority: "medium" });
+        tx.oncomplete = () => { db.close(); res(req.result); }; tx.onerror = () => rej(tx.error); }; q.onerror = () => rej(q.error); });
+      await render(); await T.wait();
+      await T.edit(legacyId, { priority: "low" });
+      const t = await T.get(legacyId); const stillLong = (await TodoDB.all()).some(x => x.title === "x".repeat(250));
+      return { addRejected, stillLong, p: t.priority, len: t.title.length };`);
+    check("TC-28", "long titles rejected on add; legacy long title still editable",
+      r.addRejected && !r.stillLong && r.p === "low" && r.len === 250, JSON.stringify(r));
+    await collect();
+
+    // TC-29 unsaved edits survive re-renders
+    await ev(`await T.reset();`);
+    const [idA, idB] = await ev(`return [await T.add("Task A"), await T.add("Task B")];`);
+    await tag("TC-29");
+    r = await ev(`T.item(${idA}).querySelector(".edit").click(); await T.wait(100);
+      T.item(${idA}).querySelector(".edit-title").value = "Draft";
+      T.item(${idA}).querySelector(".edit-title").dispatchEvent(new Event("input", { bubbles: true }));
+      T.item(${idB}).querySelector("input[type=checkbox]").click(); await T.wait(300);
+      const f = T.item(${idA}) && T.item(${idA}).querySelector(".edit-form");
+      const res = { open: !!f, title: f && f.querySelector(".edit-title").value, stored: (await T.get(${idA})).title };
+      if (f) f.querySelector(".edit-cancel").click(); await T.wait(); return res;`);
+    check("TC-29", "unsaved edit draft survives an unrelated re-render", r.open && r.title === "Draft" && r.stored === "Task A", JSON.stringify(r));
+    await collect();
+
+    // TC-30 one save at a time
+    await tag("TC-30");
+    r = await ev(`T.item(${idA}).querySelector(".edit").click(); await T.wait(100);
+      const f = T.item(${idA}).querySelector(".edit-form"); f.querySelector(".edit-title").value = "Saved once";
+      f.requestSubmit(); f.requestSubmit(); await T.wait(400); await TodoLog.flush();
+      return { edits: (await T.entries("TC-30")).filter(e => e.action === "task.edit").length, title: (await T.get(${idA})).title };`);
+    check("TC-30", "double submit saves once", r.edits === 1 && r.title === "Saved once", JSON.stringify(r));
+    await collect();
+
     // TC-18 tampered priority
     await seed(4, [
       { title: "Evil", done: false, createdAt: 1, due: null, tags: [], repeat: "none", anchorDay: null, nextId: null, spawnedFrom: null, priority: "<img src=x onerror=window.pwned=1>" },
