@@ -1,15 +1,15 @@
 {
   "suite": "issue-14",
-  "generatedAt": "2026-10-26T11:16:02.421Z",
-  "ok": true,
+  "generatedAt": "2026-10-26T11:21:30.723Z",
+  "ok": false,
   "summary": {
-    "cases": 27,
-    "pass": 19,
-    "unit": 5,
+    "cases": 32,
+    "pass": 21,
+    "unit": 6,
     "skipped": 3,
-    "notExecuted": 0,
-    "incomplete": 0,
-    "entries": 119,
+    "notExecuted": 1,
+    "incomplete": 1,
+    "entries": 126,
     "malformed": 0,
     "unknown": 0
   },
@@ -17,11 +17,9 @@
     {
       "id": "TC-01",
       "auto": "e2e",
-      "status": "pass",
-      "missing": [],
-      "actions": [
-        "task.add",
-        "test.case_start"
+      "status": "not-executed",
+      "missing": [
+        "task.add"
       ]
     },
     {
@@ -148,8 +146,10 @@
     {
       "id": "TC-13",
       "auto": "e2e",
-      "status": "pass",
-      "missing": [],
+      "status": "incomplete",
+      "missing": [
+        "task.add:error"
+      ],
       "actions": [
         "task.add",
         "test.case_start"
@@ -261,6 +261,53 @@
       "auto": "e2e",
       "status": "skipped",
       "note": "a console check across the whole run, not an app action"
+    },
+    {
+      "id": "TC-28",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "TC-29",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-30",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "actions": [
+        "task.delete",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-31",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "actions": [
+        "test.case_start",
+        "test.time"
+      ]
+    },
+    {
+      "id": "TC-32",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
     }
   ],
   "malformed": [],

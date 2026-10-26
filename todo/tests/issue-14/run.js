@@ -57,6 +57,17 @@ function unit() {
   try { r = E.evaluate({ logText: full + "\n" + line({ action: "task.add", testCase: "TC-99" }), specText: spec, expected }); } catch (e) { r = { error: e.message }; }
   check("TC-25", "eval: unit cases skipped, unknown case flagged",
     r.ok === true && (r.cases || []).find((c) => c.id === "TC-03")?.status === "unit" && JSON.stringify(r.unknown) === '["TC-99"]', JSON.stringify(r));
+
+  // TC-28: a failed action doesn't count, unless declared as "<action>:error"
+  const failedSpawn = full.split("\n").map((l) => (l.includes("task.spawn") ? l.replace('"outcome":"ok"', '"outcome":"error"') : l)).join("\n");
+  let r1, r2;
+  try {
+    r1 = E.evaluate({ logText: failedSpawn, specText: spec, expected });
+    r2 = E.evaluate({ logText: failedSpawn, specText: spec, expected: { ...expected, "TC-02": ["task.complete", "task.spawn:error"] } });
+  } catch (e) { r1 = r2 = { error: e.message }; }
+  const k1 = (r1.cases || []).find((c) => c.id === "TC-02");
+  check("TC-28", "failed actions don't count as done; ':error' expectations match them",
+    r1.ok === false && k1?.status === "incomplete" && JSON.stringify(k1.missing) === '["task.spawn"]' && r2.ok === true, JSON.stringify({ r1, r2 }));
 }
 
 // ---------------------------------------------------------------- e2e
@@ -81,7 +92,7 @@ async function e2e() {
   const open = async () => { await nav("/index.html"); await ev(H); };
   const tag = (id) => ev(`return TodoLog.setTestCase(${JSON.stringify(id)});`);
   const collect = async () => {
-    try { for (const e of await ev(`await TodoLog.flush(); return await TodoLog.all();`)) collected.set(e.id, e); } catch {}
+    try { for (const e of await ev(`await TodoLog.flush(); return await TodoLog.all();`)) collected.set(`${e.sessionId}:${e.seq}`, e); } catch {}
   };
   const fresh = async () => {
     // Start from empty tasks AND an empty log (via the API; not part of any case).
@@ -293,6 +304,47 @@ async function e2e() {
       return { res, tagged: last ? (last.testCase || null) : "missing" };`);
     check("TC-20", "invalid test-case tags rejected", JSON.stringify(r.res) === "[false,false,false]" && r.tagged === null, JSON.stringify(r));
     await tag("TC-20"); await collect();
+
+    // TC-29 scripts can't pose as the user
+    await open(); await fresh(); await tag("TC-29");
+    r = await ev(`const id = await TodoDB.add("Spoof target", {}); await TodoDB.remove(id, { actor: "user" }); await TodoLog.flush();
+      const del = (await T.entries("TC-29")).filter(e => e.action === "task.delete");
+      return { actors: del.map(e => e.actor), claim: TodoDB.claimUserToken ? TodoDB.claimUserToken() : "no-claim-api" };`);
+    check("TC-29", "script calls with {actor:'user'} are logged as api; token can't be re-claimed",
+      JSON.stringify(r.actors) === '["api"]' && r.claim === null, JSON.stringify(r));
+    await collect();
+
+    // TC-30 deleting a missing task isn't logged as done
+    await tag("TC-30");
+    r = await ev(`await TodoDB.remove(9999); await TodoLog.flush(); return (await T.entries("TC-30")).filter(e => e.action === "task.delete").length;`);
+    check("TC-30", "deleting a missing task logs no task.delete", r === 0, String(r));
+    await collect();
+
+    // TC-31 panel shows local time
+    await tag("TC-31");
+    r = await ev(`TodoLog.log({ action: "test.time", actor: "api" }); await TodoLog.flush();
+      const e = (await TodoLog.all()).filter(x => x.action === "test.time").pop();
+      const d = new Date(e.ts); const p = n => String(n).padStart(2, "0");
+      const local = p(d.getHours()) + ":" + p(d.getMinutes()) + ":" + p(d.getSeconds());
+      document.getElementById("activity").open = true; await renderActivity(); await T.wait();
+      const row = document.querySelector('#activity-list li[data-id="' + e.id + '"] [data-col="time"]');
+      return { shown: row && row.textContent, local };`);
+    check("TC-31", "panel time column shows local HH:MM:SS", r.shown === r.local, JSON.stringify(r));
+    await collect();
+
+    // TC-32 survives the log database being deleted/closed by another tab
+    await tag("TC-32");
+    const errs32 = consoleErrors.length;
+    r = await ev(`document.getElementById("activity").open = true; await renderActivity();
+      await new Promise(res => { const d = indexedDB.deleteDatabase("todo-logs"); d.onsuccess = d.onerror = res; });
+      TodoLog.setTestCase("TC-32");
+      await T.add("After logs reset", "", "", "none"); await renderActivity(); await T.wait(300);
+      return { titles: T.titles(), adds: (await T.entries("TC-32")).filter(e => e.action === "task.add").length,
+        rows: document.querySelectorAll("#activity-list li").length };`);
+    const new32 = consoleErrors.slice(errs32);
+    check("TC-32", "log DB closed elsewhere: no unhandled errors, panel renders, logging resumes",
+      r.titles.includes("After logs reset") && r.adds === 1 && r.rows >= 1 && new32.length === 0, JSON.stringify({ r, new32 }));
+    await collect();
   } catch (e) {
     check("E2E", "browser run", false, e.stack || e.message);
   } finally {
@@ -306,7 +358,7 @@ async function e2e() {
     const E = require(path.join(TODO_DIR, "tests", "eval", "eval-logs.js"));
     const outDir = path.join(HERE, "eval");
     fs.mkdirSync(outDir, { recursive: true });
-    const logText = [...collected.values()].sort((a, b) => a.id - b.id).map((e) => JSON.stringify(e)).join("\n");
+    const logText = [...collected.values()].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.seq - b.seq)).map((e) => JSON.stringify(e)).join("\n");
     fs.writeFileSync(path.join(outDir, "run-log.jsonl"), logText + (logText ? "\n" : ""));
     const res = E.evaluate({ logText, specText: fs.readFileSync(path.join(HERE, "test-cases.md"), "utf8"),
       expected: JSON.parse(fs.readFileSync(path.join(HERE, "expected-log.json"), "utf8")) });

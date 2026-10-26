@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation.
 
-**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-26** (27 cases). Not executed yet.
+**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-26** (27 cases). TC-28–TC-32 were added after code-review round 1 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (5 cases). Not executed yet.
 
 **Terms:**
 
@@ -25,7 +25,7 @@ Written from the approved plan **before** implementation.
 | TC-10 | Export JSONL | Functional | Some entries | Press **Export JSONL** | A download `todo-log-<date>.jsonl` with one valid JSON object per line, one per entry; a `log.export` entry is added | log.export | e2e | ⏳ |
 | TC-11 | Clear the log | Functional | Some entries | Press **Clear log** | Only one entry is left, `log.clear` (so the clear itself is recorded) | log.clear | e2e | ⏳ |
 | TC-12 | Test-case tagging | Functional | — | `TodoLog.setTestCase("TC-12")`; do an action; reload; do an action; `setTestCase(null)`; do an action | The first two entries have `testCase:"TC-12"` (it survives a reload in the same tab); the last has none | task.add | e2e | ⏳ |
-| TC-13 | Log failures | Functional | `TodoDB.add` made to fail | Submit "X" | A `task.add` entry with outcome `error` and the error message; actor `user` | task.add | e2e | ⏳ |
+| TC-13 | Log failures | Functional | `TodoDB.add` made to fail | Submit "X" | A `task.add` entry with outcome `error` and the error message; actor `user` | task.add:error | e2e | ⏳ |
 | TC-14 | Size cap | Edge | — | Write 1,005 entries | Exactly 1,000 kept; the 5 oldest are dropped | — | e2e | ⏳ |
 | TC-15 | Persists across reload | Edge | Some entries | Reload, then do an action | Old entries remain; the new entry has a new `sessionId` and `seq` restarts at 1 | task.add | e2e | ⏳ |
 | TC-16 | Logging can't break the app | Edge | The logs database can't be opened | Add a task | The task is added and shown; no console errors; logging is skipped quietly | — | e2e | ⏳ |
@@ -40,6 +40,11 @@ Written from the approved plan **before** implementation.
 | TC-25 | Eval: unit and unknown cases | Eval | A spec with unit cases; a log with an entry tagged `TC-99` (not in the spec) | Run the eval | Unit cases are listed as "unit: no app actions" (not failures); `TC-99` is flagged "unknown case" (a warning) | — | unit | ⏳ |
 | TC-26 | Eval on the issue-7 suite | Regression | — | Run `node todo/tests/issue-7/run.js` | All 42 cases still pass; the eval report says every end-to-end case ran and has its expected actions | — | e2e | ⏳ |
 | TC-27 | No console errors | Security / Regression | The whole issue-14 end-to-end run | Watch the console and exceptions | No unexpected errors | — | e2e | ⏳ |
+| TC-28 | A failed action does not count as done (code review #1) | Eval | A fixture where a required action appears only with outcome `error` | Run the eval; then run it again expecting `task.spawn:error` | The first run says "incomplete: missing task.spawn"; the second passes. Failed actions count only when declared as `<action>:error` | — | unit | ⏳ |
+| TC-29 | Scripts cannot pose as the user (code review #2) | Security | — | A script calls `TodoDB.remove(id, {actor:"user"})`; then `TodoDB.claimUserToken()` | The delete is logged as actor `api`; `claimUserToken()` returns `null` (the app already claimed it) | task.delete | e2e | ⏳ |
+| TC-30 | Deleting a missing task is not logged as done (code review #3) | Regression | — | `TodoDB.remove(9999)` | No `task.delete` entry | — | e2e | ⏳ |
+| TC-31 | Panel shows local time (code review #4) | Regression | An entry | Open the panel | The time column shows the entry's **local** time as `HH:MM:SS` | — | e2e | ⏳ |
+| TC-32 | Survives the log database closing (code review #5) | Regression | App open | Another tab deletes `todo-logs`; then add a task through the form and open the panel | No unhandled errors; the panel renders; the new `task.add` is logged | task.add | e2e | ⏳ |
 
 ## How to run (once implemented)
 

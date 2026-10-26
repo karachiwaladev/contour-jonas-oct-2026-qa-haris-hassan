@@ -29,7 +29,7 @@
   "TC-32": ["task.become_oneoff"],
   "TC-33": ["task.become_oneoff"],
   "TC-34": ["task.add"],
-  "TC-35": ["task.add"],
+  "TC-35": ["task.add:error"],
   "TC-36": [],
   "TC-37": ["ui.filter_status"],
   "TC-38": [],

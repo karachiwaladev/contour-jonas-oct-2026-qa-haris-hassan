@@ -154,7 +154,7 @@ async function e2e() {
     // Eval support (ticket #14): before each case, collect the app log so far,
     // then tag the next case's entries with its ID.
     collect = async () => {
-      try { for (const e of await ev(`await TodoLog.flush(); return await TodoLog.all();`)) collected.set(e.id, e); } catch {}
+      try { for (const e of await ev(`await TodoLog.flush(); return await TodoLog.all();`)) collected.set(`${e.sessionId}:${e.seq}`, e); } catch {}
     };
     const tag = async (id) => { await collect(); await ev(`TodoLog.setTestCase(${JSON.stringify(id)});`); };
 
@@ -470,7 +470,7 @@ function runEval() {
     const E = require(path.join(TODO_DIR, "tests", "eval", "eval-logs.js"));
     const outDir = path.join(__dirname, "eval");
     fs.mkdirSync(outDir, { recursive: true });
-    const logText = [...collected.values()].sort((a, b) => a.id - b.id).map((e) => JSON.stringify(e)).join("\n");
+    const logText = [...collected.values()].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.seq - b.seq)).map((e) => JSON.stringify(e)).join("\n");
     fs.writeFileSync(path.join(outDir, "run-log.jsonl"), logText + (logText ? "\n" : ""));
     const res = E.evaluate({ logText, specText: fs.readFileSync(path.join(__dirname, "test-cases.md"), "utf8"),
       expected: JSON.parse(fs.readFileSync(path.join(__dirname, "expected-log.json"), "utf8")) });
