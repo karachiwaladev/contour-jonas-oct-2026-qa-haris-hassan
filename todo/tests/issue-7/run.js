@@ -301,6 +301,41 @@ async function e2e() {
     check("TC-30", "only the open head of a series shows 🔁 / Stop repeating",
       !r.reopened.badge && !r.reopened.stop && !r.history.doneBadge && r.history.openBadge && r.count === 1, JSON.stringify(r));
 
+    r = await ev(`await T.reset(); await T.add("Nested", T.ymd(0), "", "daily");
+      const ids = [(await T.all())[0].id];
+      for (let i = 0; i < 3; i++) { await TodoDB.setDone(ids[i], true); ids.push((await T.all()).find(t => !ids.includes(t.id)).id); }
+      await TodoDB.setDone(ids[1], false); await TodoDB.setDone(ids[0], false); await render(); await T.wait();
+      const all = await T.all();
+      return { badges: document.querySelectorAll(".repeat").length, heads: all.filter(t => !t.done && t.repeat !== "none" && t.nextId == null).map(t => t.id), D: ids[3] };`);
+    check("TC-32", "nested undo leaves exactly one live series head",
+      r.badges === 1 && r.heads.length === 1 && r.heads[0] === r.D, JSON.stringify(r));
+
+    r = await ev(`await T.reset(); await T.add("One-off", T.ymd(0), "", "daily");
+      const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
+      const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.setDone(B, true);
+      await TodoDB.setDone(A, false); await render(); await T.wait();
+      const a = (await T.all()).find(t => t.id === A); const badge = !!T.items("One-off").find(l => l.dataset.id == A).querySelector(".repeat");
+      await TodoDB.setDone(A, true); return { aRepeat: a.repeat, aDone: a.done, badge, total: (await T.all()).length };`);
+    check("TC-33", "reopened past occurrence becomes a one-off; re-tick creates nothing",
+      r.aRepeat === "none" && r.aDone === false && !r.badge && r.total === 3, JSON.stringify(r));
+
+    r = await ev(`await T.reset(); await T.add("Before", "", "", "none");
+      await new Promise(res => { const d = indexedDB.deleteDatabase("todo-app"); d.onsuccess = d.onerror = d.onblocked = res; });
+      let err = null; try { await TodoDB.add("After", {}); await render(); await T.wait(); } catch (e) { err = String(e); }
+      return { err, titles: T.titles() };`);
+    check("TC-34", "works after the database is deleted/upgraded elsewhere",
+      !r.err && JSON.stringify(r.titles) === '["After"]', JSON.stringify(r));
+
+    r = await ev(`await T.reset(); const realAdd = TodoDB.add;
+      TodoDB.add = () => Promise.reject(new Error("TC-35 injected failure"));
+      document.getElementById("task-title").value = "Keep me"; document.getElementById("new-task").requestSubmit(); await T.wait(400);
+      TodoDB.add = realAdd;
+      const el = document.querySelector("[role=alert]");
+      return { visible: !!el && !el.hidden && el.textContent.length > 0, text: el && el.textContent, kept: document.getElementById("task-title").value };`);
+    check("TC-35", "storage errors are shown to the user and input is kept",
+      r.visible && /add the task/i.test(r.text || "") && r.kept === "Keep me", JSON.stringify(r));
+    await ev(`document.getElementById("task-title").value = ""; const el = document.querySelector("[role=alert]"); if (el) el.hidden = true;`);
+
     await seed(3, [
       { title: "Bad monthly", done: false, createdAt: "oops", due: "bad", tags: [], repeat: "monthly", anchorDay: "x" },
       { title: "Normal", done: false, createdAt: 5, due: null, tags: [], repeat: "none", anchorDay: null }]);
@@ -322,7 +357,9 @@ async function e2e() {
   } catch (e) {
     check("E2E", "browser run", false, e.stack || e.message);
   } finally {
-    check("TC-24", "no console errors or exceptions", consoleErrors.length === 0, consoleErrors.join(" | "));
+    // TC-35 injects a storage failure on purpose; its logged error is expected.
+    const unexpected = consoleErrors.filter((m) => !m.includes("TC-35 injected failure"));
+    check("TC-24", "no console errors or exceptions", unexpected.length === 0, unexpected.join(" | "));
     try { ws && ws.close(); } catch {}
     chrome.kill(); server.kill();
     await sleep(300); try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
