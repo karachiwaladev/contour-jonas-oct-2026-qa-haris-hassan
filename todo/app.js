@@ -4,6 +4,7 @@ const form = document.getElementById("new-task");
 const input = document.getElementById("task-title");
 const dueInput = document.getElementById("task-due");
 const tagsInput = document.getElementById("task-tags");
+const repeatInput = document.getElementById("task-repeat");
 const list = document.getElementById("task-list");
 const empty = document.getElementById("empty");
 const count = document.getElementById("count");
@@ -14,11 +15,7 @@ const tagFilter = document.getElementById("tag-filter");
 const filters = { status: "all", tag: "" };
 
 // Local calendar date as "YYYY-MM-DD", comparable with stored due dates.
-function today() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
+const today = () => Recurrence.today();
 
 function formatDue(due) {
   const [y, m, d] = due.split("-").map(Number);
@@ -29,7 +26,7 @@ function formatDue(due) {
 }
 
 function dueBadge(task) {
-  if (!task.due) return null;
+  if (!Recurrence.isValidDate(task.due)) return null;
   const badge = document.createElement("span");
   badge.className = "due";
   const t = today();
@@ -71,6 +68,26 @@ function taskItem(task) {
   meta.className = "meta";
   const badge = dueBadge(task);
   if (badge) meta.append(badge);
+  const repeatLabel = Recurrence.LABELS[task.repeat]; // undefined unless an allowlisted repeat
+  if (repeatLabel) {
+    const rep = document.createElement("span");
+    rep.className = "repeat";
+    rep.textContent = `🔁 ${repeatLabel}`;
+    meta.append(rep);
+    if (!task.done) {
+      const stop = document.createElement("button");
+      stop.type = "button";
+      stop.className = "stop-repeat";
+      stop.textContent = "Stop repeating";
+      stop.setAttribute("aria-label", `Stop repeating "${task.title}"`);
+      stop.addEventListener("click", async (e) => {
+        e.preventDefault(); // don't toggle the checkbox through the label
+        await TodoDB.stopRepeating(task.id);
+        render();
+      });
+      meta.append(stop);
+    }
+  }
   for (const tag of task.tags || []) {
     const chip = document.createElement("button");
     chip.type = "button";
@@ -155,7 +172,7 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const title = input.value.trim();
   if (!title) return;
-  await TodoDB.add(title, { due: dueInput.value || null, tags: tagsInput.value });
+  await TodoDB.add(title, { due: dueInput.value || null, tags: tagsInput.value, repeat: repeatInput.value });
   form.reset();
   input.focus();
   render();

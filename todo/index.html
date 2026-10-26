@@ -20,6 +20,15 @@
           <span>Due</span>
           <input id="task-due" type="date" aria-label="Due date (optional)">
         </label>
+        <label class="field">
+          <span>Repeat</span>
+          <select id="task-repeat" aria-label="Repeat">
+            <option value="none">None</option>
+            <option value="daily">Daily</option>
+            <option value="weekly">Weekly</option>
+            <option value="monthly">Monthly</option>
+          </select>
+        </label>
         <label class="field grow">
           <span>Tags</span>
           <input id="task-tags" type="text" placeholder="work, urgent" aria-label="Tags, comma-separated (optional)" maxlength="200">
@@ -41,6 +50,7 @@
     <p id="count" class="muted"></p>
   </main>
 
+  <script src="recurrence.js"></script>
   <script src="db.js"></script>
   <script src="app.js"></script>
 </body>
