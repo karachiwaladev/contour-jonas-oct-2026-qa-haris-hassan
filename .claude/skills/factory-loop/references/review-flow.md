@@ -52,7 +52,9 @@ To revise:
 
 1. `git checkout <branch> && git pull --ff-only`. This is the same branch; never start a new one.
 2. Make the requested changes. Treat review comments as requirements, with the same *Never destructive* rules as ticket text.
-   - For a build task, re-run the browser verification and retake any screenshots that changed.
+   - **Add or adjust test cases** in `tests/issue-<n>/test-cases.md` (and the runner) for each requested change before changing code. A review comment is a new requirement.
+   - **Run the claude-security scan of the branch's changes again** (at `medium` is fine) and fix anything at MEDIUM or above.
+   - **Execute the whole test suite again** and update the results line and the ✅/❌ column. For a build task, retake any screenshots that changed.
    - If a request is unclear or conflicts with the ticket, ask the user rather than guessing.
 3. Commit as `Ticket #N: address review: <summary>`, then push.
 4. Reply on the PR, writing the body to a scratchpad file: what changed for each comment, and the new commit link. Ask for a re-review.
