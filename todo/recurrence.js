@@ -38,10 +38,13 @@
     return { y, m, d: Math.min(anchor, daysInMonth(y, m)) };
   }
 
-  // A day-of-month anchor clamped to 1–31, or null if it isn't a number.
+  // A day-of-month anchor: 1–31 (above 31 clamps to 31), or null for anything
+  // else (non-numbers, booleans, 0, negatives), so callers fall back to the
+  // due date's own day rather than drifting to the 1st.
   function clampAnchor(value) {
+    if (typeof value !== "number" && typeof value !== "string") return null;
     const n = Math.trunc(Number(value));
-    return Number.isFinite(n) && n !== 0 ? Math.min(31, Math.max(1, n)) : null;
+    return Number.isFinite(n) && n >= 1 ? Math.min(31, n) : null;
   }
 
   // Today's local date as "YYYY-MM-DD".

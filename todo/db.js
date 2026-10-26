@@ -132,10 +132,6 @@ const TodoDB = (() => {
   return {
     normalizeTags,
     all: async () => (await run("readonly", (s) => s.getAll())).map(clean),
-    get: async (id) => {
-      const t = await run("readonly", (s) => s.get(id));
-      return t ? clean(t) : t;
-    },
     add(title, { due = null, tags = [], repeat = "none" } = {}) {
       const kind = R.normalizeRepeat(repeat);
       let date = R.isValidDate(due) ? due : null;

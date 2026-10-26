@@ -12,7 +12,7 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 |------|---------|
 | `index.html` | Page markup; loads `recurrence.js`, `db.js` and then `app.js` as classic scripts, so it works from `file://` |
 | `recurrence.js` | `Recurrence`: pure date math (`nextDue`, `normalizeRepeat`, `isValidDate`, `today`). It also loads in Node for unit tests. |
-| `db.js` | `TodoDB`: an IndexedDB wrapper (`all`, `get`, `add(title, {due, tags, repeat})`, `setDone`, `stopRepeating`, `remove`, `normalizeTags`). It cleans up stored records when reading them. |
+| `db.js` | `TodoDB`: an IndexedDB wrapper (`all`, `add(title, {due, tags, repeat})`, `setDone`, `stopRepeating`, `remove`, `normalizeTags`). It cleans up stored records when reading them. |
 | `app.js` | UI: rendering, the add form, the status and tag filters, tag chips, and the due and repeat badges |
 | `styles.css` | Styles, with light and dark themes |
 | `tests/issue-N/` | Test cases (`test-cases.md`) and an automated runner (`run.js`) per ticket |
@@ -39,7 +39,7 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 
 ## Tests
 
-`node todo/tests/issue-7/run.js` runs the recurring-task suite (TC-01–TC-41): unit tests in Node, then end-to-end tests in headless Chrome. It needs Node 18+, Python 3 and Chrome; set `CHROME_PATH` if Chrome isn't in the default location. Set `SCREENSHOTS=<dir>` to save screenshots.
+`node todo/tests/issue-7/run.js` runs the recurring-task suite (TC-01–TC-42): unit tests in Node, then end-to-end tests in headless Chrome. It needs Node 18+, Python 3 and Chrome; set `CHROME_PATH` if Chrome isn't in the default location. Set `SCREENSHOTS=<dir>` to save screenshots.
 
 ## Manual test checklist
 

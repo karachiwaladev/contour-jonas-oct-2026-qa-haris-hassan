@@ -128,7 +128,7 @@ async function e2e() {
     // Seed IndexedDB at a given schema version with raw records (bypasses the app).
     // Runs on a blank same-origin page so the app isn't holding the database open.
     const seed = async (version, records) => { await nav("/tests/issue-7/blank.html"); return ev(`
-      await new Promise(r => { const d = indexedDB.deleteDatabase("todo-app"); d.onsuccess = d.onerror = d.onblocked = r; });
+      await new Promise(r => { const d = indexedDB.deleteDatabase("todo-app"); d.onsuccess = d.onerror = r; }); // not onblocked: it fires before the delete finishes
       await new Promise((resolve, reject) => { const q = indexedDB.open("todo-app", ${version});
         q.onupgradeneeded = () => q.result.createObjectStore("tasks", { keyPath: "id", autoIncrement: true });
         q.onsuccess = () => { const tx = q.result.transaction("tasks", "readwrite"); for (const r of ${JSON.stringify(records)}) tx.objectStore("tasks").add(r);
