@@ -1,17 +1,17 @@
 {
   "suite": "issue-14",
-  "generatedAt": "2026-10-26T11:40:31.788Z",
-  "ok": false,
+  "generatedAt": "2026-10-26T11:41:36.396Z",
+  "ok": true,
   "summary": {
     "cases": 40,
-    "pass": 27,
+    "pass": 28,
     "unit": 8,
     "skipped": 4,
     "notExecuted": 0,
     "incomplete": 0,
-    "unexpectedError": 1,
-    "entries": 138,
-    "malformed": 0,
+    "unexpectedError": 0,
+    "entries": 135,
+    "malformed": 1,
     "unknown": 0
   },
   "cases": [
@@ -396,17 +396,19 @@
     {
       "id": "TC-40",
       "auto": "unit + e2e",
-      "status": "unexpected-error",
+      "status": "pass",
       "missing": [],
-      "unexpected": [
-        "task.add:error"
-      ],
+      "unexpected": [],
       "actions": [
-        "task.add:error",
         "test.case_start"
       ]
     }
   ],
-  "malformed": [],
+  "malformed": [
+    {
+      "line": 117,
+      "reason": "invalid action"
+    }
+  ],
   "unknown": []
 }

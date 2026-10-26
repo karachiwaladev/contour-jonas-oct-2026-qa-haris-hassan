@@ -1,7 +1,7 @@
 # Eval report: issue-14
 
-**Result: FAIL**. 27 passed, 0 not executed, 0 incomplete, 1 with unexpected failures, 8 unit, 4 skipped. 138 log entries read, 0 malformed, 0 unknown case tags.
-Generated 2026-10-26T11:40:31.788Z.
+**Result: PASS**. 28 passed, 0 not executed, 0 incomplete, 0 with unexpected failures, 8 unit, 4 skipped. 135 log entries read, 1 malformed, 0 unknown case tags.
+Generated 2026-10-26T11:41:36.396Z.
 
 | Case | Auto | Status | Missing actions / note |
 |------|------|--------|------------------------|
@@ -44,4 +44,6 @@ Generated 2026-10-26T11:40:31.788Z.
 | TC-37 | e2e | ✅ pass |  |
 | TC-38 | e2e | ✅ pass |  |
 | TC-39 | e2e | ➖ skipped | the logger is blocked on purpose in this case, so it can leave no entries |
-| TC-40 | unit + e2e | ❌ unexpected-error | unexpected failures: task.add:error |
+| TC-40 | unit + e2e | ✅ pass |  |
+
+**Malformed log lines:** line 117 (invalid action)

@@ -75,19 +75,22 @@ const TodoLog = (() => {
   // If the connection was closed under us (another tab upgraded or deleted the
   // log database), reopen once and retry.
   async function tx(mode, work, retried = false) {
-    const db = await openDb();
+    const opened = openDb();
+    const db = await opened;
     if (!db) return undefined;
     try {
       return await new Promise((resolve, reject) => {
         const t = db.transaction(STORE, mode); // throws InvalidStateError on a closed connection
         const req = work(t.objectStore(STORE));
         t.oncomplete = () => resolve(req ? req.result : undefined);
-        t.onerror = (e) => { if (e && e.preventDefault) e.preventDefault(); reject(t.error); };
+        // The failed request's error is on the event; t.error is still null here.
+        t.onerror = (e) => { if (e && e.preventDefault) e.preventDefault(); reject((e && e.target && e.target.error) || t.error || new Error("log write failed")); };
         t.onabort = () => reject(t.error);
       });
     } catch (err) {
       if (!retried && err && err.name === "InvalidStateError") {
-        dbPromise = null;
+        // Forget only the connection that failed; another call may already have reopened.
+        if (dbPromise === opened) dbPromise = null;
         return tx(mode, work, true);
       }
       throw err;
@@ -115,17 +118,26 @@ const TodoLog = (() => {
   const text = (value, max) => String(value).slice(0, max);
 
   // Record one action. Fire-and-forget; call flush() to wait for it.
+  // Action names are plain identifiers ("task.add"), never containing "@" or
+  // ":", which the eval uses for actor and outcome qualifiers.
+  const ACTION_RE = /^[a-z][a-z0-9_.]{0,63}$/;
+
+  // A plain-data copy, so later edits by the caller can't change the entry.
+  function copyChanges(changes) {
+    try { return changes && typeof changes === "object" ? JSON.parse(JSON.stringify(changes)) : {}; } catch { return {}; }
+  }
+
   function log({ action, actor = "api", taskId = null, changes = {}, outcome = "ok", error } = {}) {
-    if (typeof action !== "string" || !action) return;
+    if (typeof action !== "string" || !ACTION_RE.test(action)) return;
     const entry = {
       ts: new Date().toISOString(),
       sessionId,
       seq: ++seq,
       actor: userToken !== null && actor === userToken ? "user" : "api",
       automated,
-      action: text(action, 64),
+      action,
       taskId: Number.isInteger(taskId) ? taskId : null,
-      changes: changes && typeof changes === "object" ? changes : {},
+      changes: copyChanges(changes),
       outcome: outcome === "error" ? "error" : "ok",
     };
     if (error !== undefined) entry.error = text(error && error.message ? error.message : error, 200);

@@ -36,10 +36,17 @@ function clearError(source) {
   if (!source || errorBox.dataset.source === source) errorBox.hidden = true;
 }
 
+// The action log is best-effort: if logger.js didn't load, use a no-op stand-in
+// so the app itself keeps working.
+const Log = typeof TodoLog !== "undefined" ? TodoLog : {
+  log() {}, claimUserToken: () => null, recent: async () => [], count: async () => 0,
+  exportJSONL: async () => "", clear: async () => {}, flush: async () => {},
+};
+
 // Everything done through the page is logged as the user's action. The token
 // is claimed once and lives only in this closure, so scripts calling TodoDB
 // directly can't pass it (they are logged as "api").
-const USER = TodoLog.claimUserToken();
+const USER = Log.claimUserToken();
 
 // Run a storage action from a click, then redraw from what is actually stored.
 // A failure is shown on the page (e.g. "close other tabs" during an upgrade),
@@ -54,7 +61,7 @@ async function act(what, fn, action, taskId = null) {
   } catch (err) {
     ok = false;
     showError(what, err, "action");
-    if (action && !(err && err.logged)) TodoLog.log({ action, actor: USER, taskId, outcome: "error", error: err });
+    if (action && !(err && err.logged)) Log.log({ action, actor: USER, taskId, outcome: "error", error: err });
   }
   await render();
   return ok;
@@ -138,7 +145,7 @@ function taskItem(task) {
     chip.addEventListener("click", (e) => {
       e.preventDefault(); // don't toggle the checkbox through the label
       filters.tag = tag;
-      TodoLog.log({ action: "ui.filter_tag", actor: USER, changes: { tag: "set" } }); // never the tag text
+      Log.log({ action: "ui.filter_tag", actor: USER, changes: { tag: "set" } }); // never the tag text
       render();
     });
     meta.append(chip);
@@ -264,7 +271,7 @@ async function renderActivity() {
   const seq = ++activitySeq;
   let rows, total;
   try {
-    [rows, total] = await Promise.all([TodoLog.recent(ACTIVITY_ROWS), TodoLog.count()]);
+    [rows, total] = await Promise.all([Log.recent(ACTIVITY_ROWS), Log.count()]);
   } catch {
     return;
   }
@@ -278,14 +285,14 @@ activity.addEventListener("toggle", () => { if (activity.open) renderActivity();
 
 document.getElementById("log-export").addEventListener("click", async () => {
   try {
-    const text = await TodoLog.exportJSONL();
+    const text = await Log.exportJSONL();
     const url = URL.createObjectURL(new Blob([text ? text + "\n" : ""], { type: "application/x-ndjson" }));
     const link = document.createElement("a");
     link.href = url;
     link.download = `todo-log-${today()}.jsonl`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    TodoLog.log({ action: "log.export", actor: USER, changes: { entries: text ? text.split("\n").length : 0 } });
+    Log.log({ action: "log.export", actor: USER, changes: { entries: text ? text.split("\n").length : 0 } });
   } catch (err) {
     showError("export the activity log", err, "action");
   }
@@ -293,7 +300,7 @@ document.getElementById("log-export").addEventListener("click", async () => {
 });
 
 document.getElementById("log-clear").addEventListener("click", async () => {
-  await TodoLog.clear({ actor: USER });
+  await Log.clear({ actor: USER });
   renderActivity();
 });
 
@@ -326,7 +333,7 @@ form.addEventListener("submit", async (e) => {
 for (const b of statusButtons) {
   b.addEventListener("click", () => {
     filters.status = b.dataset.status;
-    TodoLog.log({ action: "ui.filter_status", actor: USER, changes: { status: filters.status } });
+    Log.log({ action: "ui.filter_status", actor: USER, changes: { status: filters.status } });
     render();
   });
 }
@@ -334,7 +341,7 @@ for (const b of statusButtons) {
 tagFilter.addEventListener("change", () => {
   filters.tag = tagFilter.value;
   // Which tag is user text, so only whether a tag filter is on is logged.
-  TodoLog.log({ action: "ui.filter_tag", actor: USER, changes: { tag: filters.tag ? "set" : "cleared" } });
+  Log.log({ action: "ui.filter_tag", actor: USER, changes: { tag: filters.tag ? "set" : "cleared" } });
   render();
 });
 

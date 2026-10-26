@@ -53,6 +53,9 @@ function parseLog(logText) {
     try { obj = JSON.parse(line); } catch { malformed.push({ line: i + 1, reason: "not JSON" }); return; }
     if (!obj || typeof obj !== "object" || Array.isArray(obj)) { malformed.push({ line: i + 1, reason: "not an object" }); return; }
     if (typeof obj.action !== "string" || !obj.action) { malformed.push({ line: i + 1, reason: "no action" }); return; }
+    // Same rule as the logger: plain names only, so "@"/":" can't spoof an
+    // actor- or outcome-qualified expectation.
+    if (!/^[a-z][a-z0-9_.]{0,63}$/.test(obj.action)) { malformed.push({ line: i + 1, reason: "invalid action" }); return; }
     entries.push(obj);
   });
   return { entries, malformed };
