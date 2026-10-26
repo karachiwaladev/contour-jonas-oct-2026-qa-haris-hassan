@@ -11,60 +11,74 @@ const TodoDB = (() => {
   const DB_VERSION = 3;
   const STORE = "tasks";
   const R = Recurrence;
-  let dbPromise = null;
+  const BLOCKED_MESSAGE = "The todo database is being upgraded. Close other tabs with this app open, then reload.";
+  let dbPromise = null;   // the open connection (or the open in progress)
+  let blockedError = null; // set while a blocked upgrade request is still pending
+
+  // Make `db` the connection in use. If another tab (or devtools) upgrades or
+  // deletes the database, close it and forget it, so the next call reopens.
+  function adopt(db) {
+    const settled = Promise.resolve(db);
+    db.onversionchange = () => {
+      db.close();
+      if (dbPromise === settled) dbPromise = null;
+    };
+    dbPromise = settled;
+  }
 
   function open() {
-    if (!dbPromise) {
-      dbPromise = new Promise((resolve, reject) => {
-        const req = indexedDB.open(DB_NAME, DB_VERSION);
-        req.onupgradeneeded = (event) => {
-          const old = event.oldVersion;
-          if (old < 1) {
-            req.result.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
-            return;
-          }
-          // v1/v2 → v3: fill in new fields in place; never drop data.
-          req.transaction.objectStore(STORE).openCursor().onsuccess = (e) => {
-            const cursor = e.target.result;
-            if (!cursor) return;
-            const task = cursor.value;
-            if (task.due === undefined) task.due = null;
-            if (!Array.isArray(task.tags)) task.tags = [];
-            if (task.repeat === undefined) task.repeat = "none";
-            if (task.anchorDay === undefined) task.anchorDay = R.dayOf(task.due);
-            if (task.nextId === undefined) task.nextId = null;
-            if (task.spawnedFrom === undefined) task.spawnedFrom = null;
-            cursor.update(task);
-            cursor.continue();
-          };
+    // While a blocked upgrade is pending, a new request would queue behind it
+    // and hang, so fail at once with the same clear message.
+    if (blockedError) return Promise.reject(blockedError);
+    if (dbPromise) return dbPromise;
+
+    const pending = new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION); // a synchronous throw rejects `pending`
+      req.onupgradeneeded = (event) => {
+        const old = event.oldVersion;
+        if (old < 1) {
+          req.result.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
+          return;
+        }
+        // v1/v2 → v3: fill in new fields in place; never drop data.
+        req.transaction.objectStore(STORE).openCursor().onsuccess = (e) => {
+          const cursor = e.target.result;
+          if (!cursor) return;
+          const task = cursor.value;
+          if (task.due === undefined) task.due = null;
+          if (!Array.isArray(task.tags)) task.tags = [];
+          if (task.repeat === undefined) task.repeat = "none";
+          if (task.anchorDay === undefined) task.anchorDay = R.dayOf(task.due);
+          if (task.nextId === undefined) task.nextId = null;
+          if (task.spawnedFrom === undefined) task.spawnedFrom = null;
+          cursor.update(task);
+          cursor.continue();
         };
-        let gaveUp = false;
-        // Another tab still has an older version open: fail clearly instead of
-        // waiting forever, and let the next call try again.
-        req.onblocked = () => {
-          gaveUp = true;
-          if (dbPromise === pending) dbPromise = null;
-          reject(new Error("The todo database is being upgraded. Close other tabs with this app open, then reload."));
-        };
-        req.onsuccess = () => {
-          const db = req.result;
-          if (gaveUp) { db.close(); return; } // a late open after we gave up: don't leave it dangling
-          // Another tab (or devtools) is upgrading or deleting the database:
-          // close, and forget this connection so the next call reopens.
-          db.onversionchange = () => {
-            db.close();
-            if (dbPromise === pending) dbPromise = null;
-          };
-          resolve(db);
-        };
-        req.onerror = () => {
-          if (dbPromise === pending) dbPromise = null;
-          reject(req.error);
-        };
-      });
-      const pending = dbPromise;
-    }
-    return dbPromise;
+      };
+      // Another tab still has an older version open: fail clearly instead of
+      // waiting. If the other tab closes later, this request still succeeds,
+      // and that connection is used from then on.
+      req.onblocked = () => {
+        blockedError = new Error(BLOCKED_MESSAGE);
+        reject(blockedError);
+      };
+      req.onsuccess = () => {
+        blockedError = null;
+        adopt(req.result);
+        resolve(req.result); // no-op if we already gave up on this request
+      };
+      req.onerror = () => {
+        blockedError = null;
+        reject(req.error);
+      };
+    });
+
+    dbPromise = pending;
+    // Any failure (a throw, an error, a block) is forgotten, so the next call retries.
+    pending.catch(() => {
+      if (dbPromise === pending) dbPromise = null;
+    });
+    return pending;
   }
 
   // Run `work(store)` in one transaction. Resolves when the transaction commits,
@@ -118,10 +132,6 @@ const TodoDB = (() => {
   return {
     normalizeTags,
     all: async () => (await run("readonly", (s) => s.getAll())).map(clean),
-    get: async (id) => {
-      const t = await run("readonly", (s) => s.get(id));
-      return t ? clean(t) : t;
-    },
     add(title, { due = null, tags = [], repeat = "none" } = {}) {
       const kind = R.normalizeRepeat(repeat);
       let date = R.isValidDate(due) ? due : null;
@@ -172,16 +182,18 @@ const TodoDB = (() => {
             const copy = ev.target.result;
             // Untouched: still open, still repeating the same way, and it hasn't
             // spawned a copy of its own. Only then is undo just "take it back".
-            const untouched = !!copy && copy.done !== true && copy.spawnedFrom === raw.id &&
-              R.normalizeRepeat(copy.repeat) === c.repeat && idOrNull(copy.nextId) === null;
+            const untouched = c.repeat !== "none" && !!copy && copy.done !== true &&
+              copy.spawnedFrom === raw.id && R.normalizeRepeat(copy.repeat) === c.repeat &&
+              idOrNull(copy.nextId) === null;
             if (untouched) {
               store.delete(c.nextId);
               store.put({ ...raw, done: false, nextId: null });
             } else {
               // The series has moved on (the copy was completed, stopped, deleted
               // or has its own copy), so the reopened occurrence becomes a plain
-              // one-off task: no badge, and nothing recurs from it.
-              store.put({ ...raw, done: false, repeat: "none" });
+              // one-off task: no badge, nothing recurs from it, and its link to
+              // the copy is cut so a later undo can never touch that task.
+              store.put({ ...raw, done: false, repeat: "none", nextId: null });
             }
           };
         };

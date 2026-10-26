@@ -52,6 +52,16 @@ function unit() {
       !err && m === "2026-11-15" && d === T0 && wOk, err || JSON.stringify({ m, d, w }));
   }
 
+  {
+    let got, next, err = null;
+    try {
+      got = [-5, true, "x", 0, 45, 15].map(R.clampAnchor);
+      next = R.nextDue("2026-10-15", "monthly", -5, "2026-10-01");
+    } catch (e) { err = e.message; }
+    check("TC-42", "corrupted anchor days are ignored, not moved to the 1st",
+      !err && JSON.stringify(got) === "[null,null,null,null,31,15]" && next === "2026-11-15", err || JSON.stringify({ got, next }));
+  }
+
   let threw = null, r = {};
   try {
     r.none = R.nextDue("2026-01-01", "x", 1, "2026-01-01");
@@ -118,7 +128,7 @@ async function e2e() {
     // Seed IndexedDB at a given schema version with raw records (bypasses the app).
     // Runs on a blank same-origin page so the app isn't holding the database open.
     const seed = async (version, records) => { await nav("/tests/issue-7/blank.html"); return ev(`
-      await new Promise(r => { const d = indexedDB.deleteDatabase("todo-app"); d.onsuccess = d.onerror = d.onblocked = r; });
+      await new Promise(r => { const d = indexedDB.deleteDatabase("todo-app"); d.onsuccess = d.onerror = r; }); // not onblocked: it fires before the delete finishes
       await new Promise((resolve, reject) => { const q = indexedDB.open("todo-app", ${version});
         q.onupgradeneeded = () => q.result.createObjectStore("tasks", { keyPath: "id", autoIncrement: true });
         q.onsuccess = () => { const tx = q.result.transaction("tasks", "readwrite"); for (const r of ${JSON.stringify(records)}) tx.objectStore("tasks").add(r);
@@ -351,6 +361,28 @@ async function e2e() {
       const p1 = render(); const p2 = render(); await Promise.all([p1, p2]); TodoDB.all = realAll;
       return T.titles();`);
     check("TC-38", "an older redraw cannot overwrite a newer one", JSON.stringify(r) === '["Real"]', JSON.stringify(r));
+
+    r = await ev(`await T.reset(); await T.add("Loss", T.ymd(0), "", "daily");
+      const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
+      const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.stopRepeating(B);
+      await TodoDB.setDone(A, false); await TodoDB.setDone(A, true); await TodoDB.setDone(A, false);
+      const b = (await T.all()).find(t => t.id === B); return { bExists: !!b, bOpen: !!b && !b.done, total: (await T.all()).length };`);
+    check("TC-39", "reopening never deletes a separate task (data loss)", r.bExists && r.bOpen && r.total === 2, JSON.stringify(r));
+
+    r = await ev(`await T.reset(); const realAdd = TodoDB.add;
+      TodoDB.add = async (...a) => { await T.wait(300); return realAdd.apply(TodoDB, a); };
+      const f = document.getElementById("new-task"), i = document.getElementById("task-title");
+      i.value = "Buy milk"; f.requestSubmit(); f.requestSubmit(); await T.wait(700);
+      TodoDB.add = realAdd; return (await T.all()).filter(t => t.title === "Buy milk").length;`);
+    check("TC-40", "fast double submit adds the task once", r === 1, String(r));
+
+    r = await ev(`await T.reset(); const realAdd = TodoDB.add;
+      TodoDB.add = async (...a) => { await T.wait(300); return realAdd.apply(TodoDB, a); };
+      const f = document.getElementById("new-task"), i = document.getElementById("task-title");
+      i.value = "Buy milk"; f.requestSubmit(); await T.wait(50); i.value = "Call mom"; await T.wait(600);
+      TodoDB.add = realAdd; const kept = i.value; i.value = "";
+      return { titles: T.titles(), kept };`);
+    check("TC-41", "typing during an in-flight add is kept", JSON.stringify(r.titles) === '["Buy milk"]' && r.kept === "Call mom", JSON.stringify(r));
 
     await seed(3, [
       { title: "Tags", done: false, createdAt: 1, due: null, tags: [null, {}, 5, "ok", true, ["x"]], repeat: "none", anchorDay: null }]);
