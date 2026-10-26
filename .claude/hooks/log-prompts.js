@@ -86,7 +86,11 @@ function main() {
     }
   }
 
-  if (out.length) fs.appendFileSync(logFile, out.join("\n") + "\n");
+  // Save the offset only when something was logged. Stops with no new prompt
+  // (such as cron-fired loop passes) then leave both files untouched, so the
+  // auto-commit hook has nothing to commit. Re-scanning from the old offset is cheap.
+  if (!out.length) return;
+  fs.appendFileSync(logFile, out.join("\n") + "\n");
   state[sessionId] = end;
   fs.writeFileSync(stateFile, JSON.stringify(state, null, 2));
 }
