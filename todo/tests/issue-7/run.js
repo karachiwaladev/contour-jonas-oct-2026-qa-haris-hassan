@@ -246,6 +246,42 @@ async function e2e() {
     check("TC-16", "recurring data persists across reload and still recurs", /Weekly/.test(r.badge || "") && r.n === 2 && r.next === r.exp, JSON.stringify(r));
     await shot("04-after-reload.png");
 
+    // TC-26..TC-29: regression cases from the code review of PR #11
+    r = await ev(`await T.reset(); await T.add("Series", T.ymd(0), "", "daily");
+      const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
+      const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.setDone(B, true);
+      await TodoDB.setDone(A, false); await TodoDB.setDone(A, true); await render(); await T.wait();
+      const all = (await T.all()).filter(t => t.title === "Series");
+      return { total: all.length, open: all.filter(t => !t.done).length, aDone: all.find(t => t.id === A).done };`);
+    check("TC-26", "re-ticking an older occurrence does not start a second series",
+      r.total === 3 && r.open === 1 && r.aDone === true, JSON.stringify(r));
+
+    r = await ev(`await T.reset(); await T.add("Weekly", T.ymd(1), "", "weekly");
+      const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
+      const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.stopRepeating(B);
+      await TodoDB.setDone(A, false); await TodoDB.setDone(A, true); await render(); await T.wait();
+      const all = await T.all(); const b = all.find(t => t.id === B);
+      return { total: all.length, bExists: !!b, bRepeat: b && b.repeat, repeatingOpen: all.filter(t => !t.done && t.repeat !== "none").length };`);
+    check("TC-27", "undo keeps a copy whose series was stopped; series stays ended",
+      r.total === 2 && r.bExists && r.bRepeat === "none" && r.repeatingOpen === 0, JSON.stringify(r));
+
+    r = await ev(`await T.reset(); await T.add("Deleted copy", T.ymd(0), "", "daily");
+      const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
+      const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.remove(B);
+      await TodoDB.setDone(A, false); await TodoDB.setDone(A, true); await render(); await T.wait();
+      return (await T.all()).length;`);
+    check("TC-28", "undo after the copy was deleted does not restart the series", r === 1, String(r));
+
+    await seed(3, [
+      { title: "Bad monthly", done: false, createdAt: "oops", due: "bad", tags: [], repeat: "monthly", anchorDay: "x" },
+      { title: "Normal", done: false, createdAt: 5, due: null, tags: [], repeat: "none", anchorDay: null }]);
+    await open();
+    r = await ev(`const before = await T.all(); const r = { titles: T.titles(), createdAtOk: before.every(t => Number.isFinite(t.createdAt)) };
+      await T.tick("Bad monthly"); const copy = (await T.all()).find(t => t.title === "Bad monthly" && !t.done);
+      r.copy = copy; r.todayDay = Number(T.ymd(0).slice(8)); r.dueValid = !!copy && Recurrence.isValidDate(copy.due); return r;`);
+    check("TC-29", "invalid stored monthly fields: no crash, stable sort, numeric anchorDay, valid due",
+      r.titles.length === 2 && r.createdAtOk && r.copy && Number.isInteger(r.copy.anchorDay) && r.copy.anchorDay === r.todayDay && r.dueValid, JSON.stringify(r));
+
     // Visual states for the PR
     if (shotsDir) {
       await ev(`await T.reset(); await T.add("Pay rent", T.ymd(-1), "home, bills", "monthly"); await T.add("Water plants", T.ymd(0), "garden", "daily");

@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. Run all automated cases with `node todo/tests/issue-7/run.js`; see *How to run* below.
 
-**Status:** TC-01–TC-25 were executed on `8fa311f` (25/25 passed). **TC-26–TC-29 were added after the code review of PR #11 and are awaiting test-case review.**
+**Status:** TC-01–TC-25 were executed on `8fa311f` (25/25 passed). TC-26–TC-29 were added after the code review of PR #11 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases).
 
 **Dates** are relative to the day the suite runs: `T` is today, `T+3` is three days from today. Fixed calendar dates appear only in the unit cases (month-end, leap year, year boundary).
 
