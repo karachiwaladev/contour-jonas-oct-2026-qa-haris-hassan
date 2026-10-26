@@ -25,7 +25,7 @@ projects/<project-name>/  ← one folder per project, each with its own CLAUDE.m
 
 ## Project rules
 
-- **One project, one folder:** every project lives in `projects/<project-name>/`, in kebab-case.
+- **One project, one folder:** every project lives in `projects/<project-name>/`, in kebab-case. If a ticket names a folder, use that folder instead.
 - Every project folder has its own `CLAUDE.md` (or `README.md`) covering its purpose, how to run and test it, and conventions.
 - Projects don't reach into each other's folders. Shared tooling goes in `.claude/skills/`.
 - When you **add, rename or remove** a project, update the index below in the same commit.
@@ -42,7 +42,7 @@ projects/<project-name>/  ← one folder per project, each with its own CLAUDE.m
 
 | Project | Path | Summary | Ticket |
 |---------|------|---------|--------|
-| _none yet_ | `projects/` | The first project ticket creates the first row | — |
+| todo | [todo/](todo/CLAUDE.md) | Todo app: create, complete and delete tasks; IndexedDB, no build step | #4 |
 
 ## Working a ticket
 
