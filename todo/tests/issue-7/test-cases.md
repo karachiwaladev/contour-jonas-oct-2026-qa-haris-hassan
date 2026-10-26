@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. Run all automated cases with `node todo/tests/issue-7/run.js`; see *How to run* below.
 
-**Status:** Executed 2026-10-26 on `8fa311f` (branch `ticket/7-recurring-tasks`): **25/25 cases passed** (26/26 checks; TC-13 runs as both a unit check and an end-to-end check). claude-security scan of the changes at high effort: 0 findings, stamped verified.
+**Status:** TC-01–TC-25 were executed on `8fa311f` (25/25 passed). **TC-26–TC-29 were added after the code review of PR #11 and are awaiting test-case review.**
 
 **Dates** are relative to the day the suite runs: `T` is today, `T+3` is three days from today. Fixed calendar dates appear only in the unit cases (month-end, leap year, year boundary).
 
@@ -33,6 +33,10 @@ Written from the approved plan **before** implementation. Run all automated case
 | TC-23 | Tampered due value | Security | Stored daily tasks with `due: "not-a-date"` and `"2026-13-45"` | Load the page; tick one | No crash; no due badge for the invalid date; the next copy is due `T+1` (the calculation falls back to today) | e2e | ✅ |
 | TC-24 | No console errors | Security / Regression | The whole e2e run | Watch the console and exceptions | No errors and no uncaught exceptions | e2e | ✅ |
 | TC-25 | Calculation rejects bad input | Security | — | `nextDue` with repeat `"x"`, an invalid due, or anchor `99`; `normalizeRepeat` with non-allowlisted values | Returns `null` for a non-repeat, never throws, clamps the anchor to 1–31, and `normalizeRepeat` returns `"none"` | unit | ✅ |
+| TC-26 | No duplicate series (code review #1) | Regression | Daily A due `T` | Tick A (creates B); tick B (creates C); untick A; tick A again | No new copy appears: exactly one open occurrence (C) of the series, and A is done | e2e | ⏳ |
+| TC-27 | Undo respects Stop repeating (code review #2) | Regression | Weekly A due `T+1` | Tick A (creates B); press **Stop repeating** on B; untick A; tick A again | B is kept with `repeat: "none"`, no new repeating copy is created, and the series stays ended | e2e | ⏳ |
+| TC-28 | Undo after the copy was deleted (code review #1/#2) | Regression | Daily A due `T` | Tick A (creates B); delete B; untick A; tick A again | No new copy: deleting B ended the series | e2e | ⏳ |
+| TC-29 | Monthly anchor kept when due is invalid; numeric fields coerced (code review #4/#5) | Security | A stored monthly task with `due: "bad"`, `anchorDay: "x"`, `createdAt: "oops"`, plus a normal task | Load the page; tick the monthly task | No crash; the sort is stable (no NaN); the spawned copy has a numeric `anchorDay` equal to its own day of month, and a valid due date | e2e | ⏳ |
 
 ## How to run
 
