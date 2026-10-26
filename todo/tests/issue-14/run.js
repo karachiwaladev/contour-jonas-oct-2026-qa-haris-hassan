@@ -68,6 +68,22 @@ function unit() {
   const k1 = (r1.cases || []).find((c) => c.id === "TC-02");
   check("TC-28", "failed actions don't count as done; ':error' expectations match them",
     r1.ok === false && k1?.status === "incomplete" && JSON.stringify(k1.missing) === '["task.spawn"]' && r2.ok === true, JSON.stringify({ r1, r2 }));
+
+  // TC-34: expectations can name the actor (fixture entries are actor "api")
+  try {
+    r1 = E.evaluate({ logText: full, specText: spec, expected: { ...expected, "TC-01": ["task.add@user"] } });
+    r2 = E.evaluate({ logText: full, specText: spec, expected: { ...expected, "TC-01": ["task.add@api"] } });
+  } catch (e) { r1 = r2 = { error: e.message }; }
+  const k34 = (r1.cases || []).find((c) => c.id === "TC-01");
+  check("TC-34", "eval checks the actor with action@actor",
+    r1.ok === false && k34?.status === "incomplete" && JSON.stringify(k34.missing) === '["task.add@user"]' && r2.ok === true, JSON.stringify({ r1, r2 }));
+
+  // TC-35: an unexpected failure in a case fails it
+  try { r = E.evaluate({ logText: full + "\n" + line({ action: "task.delete", outcome: "error", testCase: "TC-01" }), specText: spec, expected }); }
+  catch (e) { r = { error: e.message }; }
+  const k35 = (r.cases || []).find((c) => c.id === "TC-01");
+  check("TC-35", "eval flags unexpected failed actions",
+    r.ok === false && k35?.status === "unexpected-error" && JSON.stringify(k35.unexpected) === '["task.delete:error"]', JSON.stringify(r));
 }
 
 // ---------------------------------------------------------------- e2e
@@ -296,14 +312,15 @@ async function e2e() {
     check("TC-19", "tampered entries render as text", !r.injected && !r.pwned && r.shown, JSON.stringify(r));
     await collect();
 
-    // TC-20 invalid test-case tags rejected
-    await ev(`TodoLog.setTestCase(null);`);
-    r = await ev(`const res = ["<script>", "TC-", "tc 1"].map(v => TodoLog.setTestCase(v));
+    // TC-20 invalid test-case tags rejected (tagged first, so the eval sees it ran;
+    // the case itself then clears the tag, as its steps require)
+    await tag("TC-20");
+    r = await ev(`TodoLog.setTestCase(null); const res = ["<script>", "TC-", "tc 1"].map(v => TodoLog.setTestCase(v));
       await TodoDB.add("After bad tags", {}); await TodoLog.flush();
       const last = (await TodoLog.all()).filter(e => e.action === "task.add").pop();
       return { res, tagged: last ? (last.testCase || null) : "missing" };`);
     check("TC-20", "invalid test-case tags rejected", JSON.stringify(r.res) === "[false,false,false]" && r.tagged === null, JSON.stringify(r));
-    await tag("TC-20"); await collect();
+    await collect();
 
     // TC-29 scripts can't pose as the user
     await open(); await fresh(); await tag("TC-29");
@@ -345,10 +362,49 @@ async function e2e() {
     check("TC-32", "log DB closed elsewhere: no unhandled errors, panel renders, logging resumes",
       r.titles.includes("After logs reset") && r.adds === 1 && r.rows >= 1 && new32.length === 0, JSON.stringify({ r, new32 }));
     await collect();
+
+    // TC-33 the log itself can't be told "user" by a script
+    await tag("TC-33");
+    r = await ev(`TodoLog.log({ action: "task.delete", actor: "user", taskId: 1 }); await TodoLog.flush();
+      const e = (await T.entries("TC-33")).filter(x => x.action === "task.delete").pop();
+      return { actor: e && e.actor, claim: TodoLog.claimUserToken ? TodoLog.claimUserToken() : "no-claim-api" };`);
+    check("TC-33", "TodoLog.log with actor:'user' from a script is logged as api; token not re-claimable",
+      r.actor === "api" && r.claim === null, JSON.stringify(r));
+    await collect();
+
+    // TC-36 logging retries after a failed open
+    const sid36 = await addInitScript(`(() => { const o = indexedDB.open.bind(indexedDB); let failed = false;
+      indexedDB.open = (name, v) => { if (name === "todo-logs" && !failed) { failed = true; throw new Error("TC-36 first open fails"); } return o(name, v); }; })();`);
+    await open();
+    await removeInitScript(sid36);
+    r = await ev(`TodoLog.setTestCase("TC-36"); await TodoLog.flush(); await T.add("Retry works", "", "", "none");
+      return (await T.entries("TC-36")).filter(e => e.action === "task.add").map(e => e.actor);`);
+    check("TC-36", "logging retries after a failed open", JSON.stringify(r) === '["user"]', JSON.stringify(r));
+    await collect();
+
+    // TC-37 stopRepeating on a non-repeating task logs nothing
+    await tag("TC-37");
+    r = await ev(`const id = await TodoDB.add("Plain", {}); await TodoDB.stopRepeating(id); await TodoLog.flush();
+      return (await T.entries("TC-37")).filter(e => e.action === "task.stop_repeating").length;`);
+    check("TC-37", "no stop_repeating entry when nothing changed", r === 0, String(r));
+    await collect();
+
+    // TC-38 UI-logged failure names the task, exactly once
+    await ev(`await T.add("Undeletable", "", "", "none");`);
+    await tag("TC-38");
+    r = await ev(`const id = Number(T.items("Undeletable")[0].dataset.id); const real = TodoDB.remove;
+      TodoDB.remove = () => Promise.reject(new Error("TC-38 injected failure"));
+      T.items("Undeletable")[0].querySelector(".delete").click(); await T.wait(400); TodoDB.remove = real;
+      document.getElementById("error").hidden = true;
+      const errs = (await T.entries("TC-38")).filter(e => e.action === "task.delete" && e.outcome === "error");
+      return { id, errs: errs.map(e => ({ taskId: e.taskId, actor: e.actor })) };`);
+    check("TC-38", "UI-logged failure has the task id, logged once",
+      r.errs.length === 1 && r.errs[0].taskId === r.id && r.errs[0].actor === "user", JSON.stringify(r));
+    await collect();
   } catch (e) {
     check("E2E", "browser run", false, e.stack || e.message);
   } finally {
-    const unexpected = consoleErrors.filter((m) => !/TC-1[36] injected failure|TC-16 logs unavailable/.test(m));
+    const unexpected = consoleErrors.filter((m) => !/TC-(13|16|38) injected failure|TC-16 logs unavailable|TC-36 first open fails/.test(m));
     check("TC-27", "no unexpected console errors", unexpected.length === 0, unexpected.join(" | "));
     await b.close();
   }

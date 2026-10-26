@@ -1,15 +1,15 @@
 {
   "suite": "issue-14",
-  "generatedAt": "2026-10-26T11:25:06.243Z",
-  "ok": true,
+  "generatedAt": "2026-10-26T11:31:10.557Z",
+  "ok": false,
   "summary": {
-    "cases": 32,
-    "pass": 23,
-    "unit": 6,
+    "cases": 38,
+    "pass": 18,
+    "unit": 8,
     "skipped": 3,
-    "notExecuted": 0,
-    "incomplete": 0,
-    "entries": 127,
+    "notExecuted": 3,
+    "incomplete": 6,
+    "entries": 129,
     "malformed": 0,
     "unknown": 0
   },
@@ -17,8 +17,10 @@
     {
       "id": "TC-01",
       "auto": "e2e",
-      "status": "pass",
-      "missing": [],
+      "status": "incomplete",
+      "missing": [
+        "task.add@user"
+      ],
       "actions": [
         "task.add",
         "test.case_start"
@@ -27,8 +29,11 @@
     {
       "id": "TC-02",
       "auto": "e2e",
-      "status": "pass",
-      "missing": [],
+      "status": "incomplete",
+      "missing": [
+        "task.complete@user",
+        "task.reopen@user"
+      ],
       "actions": [
         "task.complete",
         "task.reopen",
@@ -67,8 +72,10 @@
     {
       "id": "TC-05",
       "auto": "e2e",
-      "status": "pass",
-      "missing": [],
+      "status": "incomplete",
+      "missing": [
+        "task.delete@user"
+      ],
       "actions": [
         "task.delete",
         "test.case_start"
@@ -77,8 +84,12 @@
     {
       "id": "TC-06",
       "auto": "e2e",
-      "status": "pass",
-      "missing": [],
+      "status": "incomplete",
+      "missing": [
+        "task.add@api",
+        "task.complete@api",
+        "task.add@user"
+      ],
       "actions": [
         "task.add",
         "task.complete",
@@ -271,8 +282,10 @@
     {
       "id": "TC-29",
       "auto": "e2e",
-      "status": "pass",
-      "missing": [],
+      "status": "incomplete",
+      "missing": [
+        "task.delete@api"
+      ],
       "actions": [
         "task.add",
         "task.delete",
@@ -306,6 +319,52 @@
       "actions": [
         "task.add",
         "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-33",
+      "auto": "e2e",
+      "status": "incomplete",
+      "missing": [
+        "task.delete@api"
+      ],
+      "actions": [
+        "task.delete",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-34",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "TC-35",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "TC-36",
+      "auto": "e2e",
+      "status": "not-executed",
+      "missing": [
+        "task.add@user"
+      ]
+    },
+    {
+      "id": "TC-37",
+      "auto": "e2e",
+      "status": "not-executed",
+      "missing": []
+    },
+    {
+      "id": "TC-38",
+      "auto": "e2e",
+      "status": "not-executed",
+      "missing": [
+        "task.delete:error@user"
       ]
     }
   ],
