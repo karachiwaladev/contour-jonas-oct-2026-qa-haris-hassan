@@ -36,8 +36,21 @@ const TodoDB = (() => {
             cursor.continue();
           };
         };
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
+        // Another tab still has an older version open: fail clearly instead of
+        // waiting forever, and let the next call try again.
+        req.onblocked = () => {
+          dbPromise = null;
+          reject(new Error("The todo database is being upgraded. Close other tabs with this app open, then reload."));
+        };
+        req.onsuccess = () => {
+          const db = req.result;
+          db.onversionchange = () => db.close(); // let a newer tab upgrade instead of blocking it
+          resolve(db);
+        };
+        req.onerror = () => {
+          dbPromise = null;
+          reject(req.error);
+        };
       });
     }
     return dbPromise;
@@ -54,12 +67,6 @@ const TodoDB = (() => {
       tx.onerror = () => reject(tx.error);
       tx.onabort = () => reject(tx.error || new Error("IndexedDB transaction aborted"));
     });
-  }
-
-  // A day of the month 1–31, or null.
-  function anchorOf(value) {
-    const n = Number(value);
-    return Number.isInteger(n) && n >= 1 && n <= 31 ? n : null;
   }
 
   const idOrNull = (value) => (Number.isInteger(value) ? value : null);
@@ -86,7 +93,7 @@ const TodoDB = (() => {
       tags: normalizeTags(Array.isArray(task.tags) ? task.tags : []),
       repeat: R.normalizeRepeat(task.repeat),
       createdAt: Number.isFinite(Number(task.createdAt)) ? Number(task.createdAt) : 0,
-      anchorDay: anchorOf(task.anchorDay),
+      anchorDay: R.clampAnchor(task.anchorDay),
       nextId: idOrNull(task.nextId),
       spawnedFrom: idOrNull(task.spawnedFrom),
     };

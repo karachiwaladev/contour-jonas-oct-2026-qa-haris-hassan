@@ -79,24 +79,23 @@ function taskItem(task) {
   meta.className = "meta";
   const badge = dueBadge(task);
   if (badge) meta.append(badge);
+  // Only the open head of a series repeats: a completed occurrence, or a
+  // reopened one whose next copy already exists or was ended, shows no 🔁.
   const repeatLabel = Recurrence.LABELS[task.repeat]; // undefined unless an allowlisted repeat
-  if (repeatLabel) {
+  if (repeatLabel && !task.done && task.nextId == null) {
     const rep = document.createElement("span");
     rep.className = "repeat";
     rep.textContent = `🔁 ${repeatLabel}`;
-    meta.append(rep);
-    if (!task.done) {
-      const stop = document.createElement("button");
-      stop.type = "button";
-      stop.className = "stop-repeat";
-      stop.textContent = "Stop repeating";
-      stop.setAttribute("aria-label", `Stop repeating "${task.title}"`);
-      stop.addEventListener("click", (e) => {
-        e.preventDefault(); // don't toggle the checkbox through the label
-        act("stop repeating", () => TodoDB.stopRepeating(task.id));
-      });
-      meta.append(stop);
-    }
+    const stop = document.createElement("button");
+    stop.type = "button";
+    stop.className = "stop-repeat";
+    stop.textContent = "Stop repeating";
+    stop.setAttribute("aria-label", `Stop repeating "${task.title}"`);
+    stop.addEventListener("click", (e) => {
+      e.preventDefault(); // don't toggle the checkbox through the label
+      act("stop repeating", () => TodoDB.stopRepeating(task.id));
+    });
+    meta.append(rep, stop);
   }
   for (const tag of task.tags || []) {
     const chip = document.createElement("button");
@@ -175,14 +174,15 @@ async function render() {
     : "";
 }
 
-form.addEventListener("submit", async (e) => {
+form.addEventListener("submit", (e) => {
   e.preventDefault();
   const title = input.value.trim();
   if (!title) return;
-  await TodoDB.add(title, { due: dueInput.value || null, tags: tagsInput.value, repeat: repeatInput.value });
-  form.reset();
-  input.focus();
-  render();
+  act("add the task", async () => {
+    await TodoDB.add(title, { due: dueInput.value || null, tags: tagsInput.value, repeat: repeatInput.value });
+    form.reset(); // only on success, so a failed add keeps what was typed
+    input.focus();
+  });
 });
 
 for (const b of statusButtons) {

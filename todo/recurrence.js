@@ -38,6 +38,14 @@
     return { y, m, d: Math.min(anchor, daysInMonth(y, m)) };
   }
 
+  // `k` months after p, on the anchor day clamped to that month's length.
+  function addMonths(p, k, anchor) {
+    const total = p.y * 12 + (p.m - 1) + k;
+    const y = Math.floor(total / 12), m = (total % 12) + 1;
+    return { y, m, d: Math.min(anchor, daysInMonth(y, m)) };
+  }
+
+  // A day-of-month anchor clamped to 1–31, or null if it isn't a number.
   function clampAnchor(value) {
     const n = Math.trunc(Number(value));
     return Number.isFinite(n) && n !== 0 ? Math.min(31, Math.max(1, n)) : null;
@@ -70,11 +78,17 @@
     // monthly
     const anchor = clampAnchor(anchorDay) || cur.d;
     let next = addMonth(cur, anchor);
-    for (let i = 0; i < 2400 && dayNumber(next) < dayNumber(t); i++) next = addMonth(next, anchor);
+    if (dayNumber(next) < dayNumber(t)) {
+      // Far behind: jump straight to the month before today's, then step at
+      // most twice. There is no cap, so any past date catches up.
+      const behind = (t.y - cur.y) * 12 + (t.m - cur.m) - 1;
+      if (behind > 1) next = addMonths(cur, behind, anchor);
+      while (dayNumber(next) < dayNumber(t)) next = addMonth(next, anchor);
+    }
     return format(next);
   }
 
-  const api = { REPEATS, LABELS, normalizeRepeat, isValidDate, nextDue, today, dayOf: (s) => (parse(s) || {}).d || null };
+  const api = { REPEATS, LABELS, normalizeRepeat, isValidDate, nextDue, today, clampAnchor, dayOf: (s) => (parse(s) || {}).d || null };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.Recurrence = api;
 })(typeof window !== "undefined" ? window : globalThis);
