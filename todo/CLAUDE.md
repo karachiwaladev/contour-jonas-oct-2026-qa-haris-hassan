@@ -1,6 +1,6 @@
 # Todo app
 
-A simple todo app. You can create a task, mark it done and delete it (Ticket #3, issue #4). Tasks can also have an optional due date and tags, and you can filter by status and by tag (Ticket #4, issue #5). Tasks can **repeat** daily, weekly or monthly (Ticket #5, issue #7). Tasks are stored in the browser with **IndexedDB**: there is no server or build step, and nothing else to install.
+A simple todo app. You can create a task, mark it done and delete it (Ticket #3, issue #4). Tasks can also have an optional due date and tags, and you can filter by status and by tag (Ticket #4, issue #5). Tasks can **repeat** daily, weekly or monthly (Ticket #5, issue #7). Every action is recorded in an **activity log** that distinguishes a person from scripts and AI agents, and test runs are checked against it by an **eval** (issue #14). Tasks are stored in the browser with **IndexedDB**: there is no server or build step, and nothing else to install.
 
 ## Run
 
@@ -10,12 +10,15 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 
 | File | Purpose |
 |------|---------|
-| `index.html` | Page markup; loads `recurrence.js`, `db.js` and then `app.js` as classic scripts, so it works from `file://` |
+| `index.html` | Page markup; loads `recurrence.js`, `logger.js`, `db.js` and then `app.js` as classic scripts, so it works from `file://` |
+| `logger.js` | `TodoLog`: the action log in its own IndexedDB database `todo-logs` (`log`, `all`, `exportJSONL`, `clear`, `setTestCase`, `flush`). It keeps the last 1,000 entries and is best-effort, so it never breaks the app. |
 | `recurrence.js` | `Recurrence`: pure date math (`nextDue`, `normalizeRepeat`, `isValidDate`, `today`). It also loads in Node for unit tests. |
-| `db.js` | `TodoDB`: an IndexedDB wrapper (`all`, `add(title, {due, tags, repeat})`, `setDone`, `stopRepeating`, `remove`, `normalizeTags`). It cleans up stored records when reading them. |
+| `db.js` | `TodoDB`: an IndexedDB wrapper (`all`, `add(title, {due, tags, repeat})`, `setDone`, `stopRepeating`, `remove`, `normalizeTags`). Every change method takes an optional last argument `{ actor: "user" }`; calls without it are logged as `api`. It cleans up stored records when reading them, and logs each change after it commits. |
 | `app.js` | UI: rendering, the add form, the status and tag filters, tag chips, and the due and repeat badges |
 | `styles.css` | Styles, with light and dark themes |
-| `tests/issue-N/` | Test cases (`test-cases.md`) and an automated runner (`run.js`) per ticket |
+| `tests/issue-N/` | Per ticket: test cases (`test-cases.md`), an automated runner (`run.js`), the actions each case must log (`expected-log.json`), and the latest eval (`eval/`) |
+| `tests/lib/harness.js` | Shared test harness: serves the app and drives headless Chrome over the DevTools Protocol |
+| `tests/eval/eval-logs.js` | The eval: compares an exported log with a suite's test cases (`node tests/eval/eval-logs.js --log … --spec … --expected …`) |
 | `screenshots/issue-N/` | Browser screenshots from verifying each ticket |
 
 ## Conventions
@@ -34,10 +37,18 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 - Storage failures are shown in the `#error` box (`role=alert`) as well as logged. `act()` wraps every storage action, and `render()` reports load failures there.
 - Filters (status AND one tag) live in memory and reset on reload.
 - **Stored data is untrusted.** `TodoDB` coerces every field on read: the repeat value is checked against a fixed list, invalid dates become `null`, tags are cleaned up, `createdAt` becomes a number, `anchorDay` becomes 1–31 or `null`, and the ids (`nextId`/`spawnedFrom`) become integers or `null`.
+- **Action log:**
+  - Each entry is `{ id, ts, sessionId, seq, actor: "user"|"api", automated, action, taskId, changes, outcome, error?, testCase? }`.
+  - The actions are `task.add`, `task.complete`, `task.spawn`, `task.reopen`, `task.copy_removed`, `task.become_oneoff`, `task.stop_repeating`, `task.delete`, `ui.filter_status`, `ui.filter_tag`, `log.export`, `log.clear` and `test.case_start`.
+  - **No titles or tag text are ever logged**; a tag filter is recorded only as `set` or `cleared`.
+  - The Activity log panel renders entries as text only.
 - Render user input with `textContent` or `new Option(text)` only, never `innerHTML`.
 - To change the data shape, bump `DB_VERSION` and migrate existing records in `onupgradeneeded`. Never drop data (see the v1/v2 → v3 migration).
 
 ## Tests
+
+`node todo/tests/issue-14/run.js` runs the action-log suite (TC-01–TC-27, including the full issue-7 suite as TC-26). Both runners tag every end-to-end case in the log (`TodoLog.setTestCase`), then run the eval and write `eval/eval-report.md` and `eval/eval-report.json`. A case that didn't run, or didn't produce its expected actions, fails the run.
+
 
 `node todo/tests/issue-7/run.js` runs the recurring-task suite (TC-01–TC-42): unit tests in Node, then end-to-end tests in headless Chrome. It needs Node 18+, Python 3 and Chrome; set `CHROME_PATH` if Chrome isn't in the default location. Set `SCREENSHOTS=<dir>` to save screenshots.
 

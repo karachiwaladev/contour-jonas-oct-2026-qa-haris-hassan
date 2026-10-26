@@ -159,3 +159,39 @@ ul { list-style: none; margin: 12px 0 0; padding: 0; }
 }
 
 .muted { color: var(--muted); font-size: 14px; }
+
+/* Activity log panel */
+.activity {
+  margin-top: 24px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+}
+.activity > summary {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+}
+.activity-tools { display: flex; gap: 8px; padding: 0 12px 8px; }
+.activity-tools button { padding: 6px 12px; font-size: 13px; }
+.activity-tools .secondary { background: transparent; color: var(--danger); border: 1px solid var(--border); }
+.activity > .muted { padding: 0 12px 10px; margin: 0; }
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 12px 12px;
+  max-height: 320px;
+  overflow-y: auto;
+  font: 12px/1.6 ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+.activity-list li {
+  display: grid;
+  grid-template-columns: 64px 64px minmax(110px, auto) 44px 1fr;
+  gap: 8px;
+  padding: 3px 0;
+  border-top: 1px solid var(--border);
+}
+.activity-list li span { overflow-wrap: anywhere; }
+.activity-list [data-col="time"], .activity-list [data-col="task"] { color: var(--muted); }
+.activity-list li.error-row { color: var(--danger); }

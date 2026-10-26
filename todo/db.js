@@ -129,19 +129,47 @@ const TodoDB = (() => {
     };
   }
 
+  // Run a change and record it in the action log (TodoLog, if loaded).
+  // `work(events)` fills `events` from inside the transaction; they are logged
+  // only after it commits. A failure is logged once with outcome "error" and
+  // marked (`err.logged`) so the UI layer doesn't log it again.
+  // `meta.actor` is "user" when the page did it; anything else is "api".
+  async function logged(meta, failure, work) {
+    const actor = meta && meta.actor === "user" ? "user" : "api";
+    const log = typeof TodoLog !== "undefined" ? TodoLog.log : () => {};
+    const events = [];
+    try {
+      const result = await work(events);
+      for (const ev of events) log({ ...ev, actor });
+      return result;
+    } catch (err) {
+      log({ ...failure, actor, outcome: "error", error: err });
+      if (err && typeof err === "object") {
+        try { err.logged = true; } catch {}
+      }
+      throw err;
+    }
+  }
+
   return {
     normalizeTags,
     all: async () => (await run("readonly", (s) => s.getAll())).map(clean),
-    add(title, { due = null, tags = [], repeat = "none" } = {}) {
+    add(title, { due = null, tags = [], repeat = "none" } = {}, meta) {
       const kind = R.normalizeRepeat(repeat);
       let date = R.isValidDate(due) ? due : null;
       if (kind !== "none" && !date) date = R.today(); // a series needs a start date
-      return run("readwrite", (s) =>
-        s.add({
-          title, done: false, createdAt: Date.now(), due: date, tags: normalizeTags(tags),
-          repeat: kind, anchorDay: R.dayOf(date),
-        })
-      );
+      const cleanTags = normalizeTags(tags);
+      return logged(meta, { action: "task.add" }, async (events) => {
+        const id = await run("readwrite", (s) =>
+          s.add({
+            title, done: false, createdAt: Date.now(), due: date, tags: cleanTags,
+            repeat: kind, anchorDay: R.dayOf(date),
+          })
+        );
+        // No title or tag text in the log: only what kind of task it is.
+        events.push({ action: "task.add", taskId: id, changes: { done: false, repeat: kind, due: date, tags: cleanTags.length } });
+        return id;
+      });
     },
 
     // Complete or reopen a task, in one transaction (concurrent calls can't
@@ -152,63 +180,82 @@ const TodoDB = (() => {
     //   repeat, no copy of its own). Otherwise the copy is kept and the reopened
     //   occurrence becomes a one-off (`repeat: "none"`), so there is never a
     //   second live series and what the UI shows matches what will happen.
-    setDone(id, done) {
-      return run("readwrite", (store) => {
-        store.get(id).onsuccess = (e) => {
-          const raw = e.target.result;
-          if (!raw || (raw.done === true) === done) return; // missing or already in that state
-          const c = clean(raw);
+    setDone(id, done, meta) {
+      return logged(meta, { action: done ? "task.complete" : "task.reopen", taskId: id }, (events) =>
+        run("readwrite", (store) => {
+          store.get(id).onsuccess = (e) => {
+            const raw = e.target.result;
+            if (!raw || (raw.done === true) === done) return; // missing or already in that state
+            const c = clean(raw);
 
-          if (done) {
-            if (c.repeat === "none" || c.nextId !== null) {
-              store.put({ ...raw, done: true });
+            if (done) {
+              events.push({ action: "task.complete", taskId: raw.id, changes: { done: true } });
+              if (c.repeat === "none" || c.nextId !== null) {
+                store.put({ ...raw, done: true });
+                return;
+              }
+              const anchorDay = c.anchorDay ?? R.dayOf(c.due) ?? R.dayOf(R.today());
+              const next = {
+                title: c.title, done: false, createdAt: Date.now(),
+                due: R.nextDue(c.due, c.repeat, anchorDay, R.today()),
+                tags: c.tags, repeat: c.repeat, anchorDay, spawnedFrom: raw.id, nextId: null,
+              };
+              store.add(next).onsuccess = (ev) => {
+                events.push({ action: "task.spawn", taskId: ev.target.result,
+                  changes: { due: next.due, repeat: next.repeat, spawnedFrom: raw.id } });
+                store.put({ ...raw, done: true, nextId: ev.target.result });
+              };
               return;
             }
-            const anchorDay = c.anchorDay ?? R.dayOf(c.due) ?? R.dayOf(R.today());
-            const next = {
-              title: c.title, done: false, createdAt: Date.now(),
-              due: R.nextDue(c.due, c.repeat, anchorDay, R.today()),
-              tags: c.tags, repeat: c.repeat, anchorDay, spawnedFrom: raw.id, nextId: null,
-            };
-            store.add(next).onsuccess = (ev) => store.put({ ...raw, done: true, nextId: ev.target.result });
-            return;
-          }
 
-          if (c.nextId === null) {
-            store.put({ ...raw, done: false });
-            return;
-          }
-          store.get(c.nextId).onsuccess = (ev) => {
-            const copy = ev.target.result;
-            // Untouched: still open, still repeating the same way, and it hasn't
-            // spawned a copy of its own. Only then is undo just "take it back".
-            const untouched = c.repeat !== "none" && !!copy && copy.done !== true &&
-              copy.spawnedFrom === raw.id && R.normalizeRepeat(copy.repeat) === c.repeat &&
-              idOrNull(copy.nextId) === null;
-            if (untouched) {
-              store.delete(c.nextId);
-              store.put({ ...raw, done: false, nextId: null });
-            } else {
-              // The series has moved on (the copy was completed, stopped, deleted
-              // or has its own copy), so the reopened occurrence becomes a plain
-              // one-off task: no badge, nothing recurs from it, and its link to
-              // the copy is cut so a later undo can never touch that task.
-              store.put({ ...raw, done: false, repeat: "none", nextId: null });
+            events.push({ action: "task.reopen", taskId: raw.id, changes: { done: false } });
+            if (c.nextId === null) {
+              store.put({ ...raw, done: false });
+              return;
             }
+            store.get(c.nextId).onsuccess = (ev) => {
+              const copy = ev.target.result;
+              // Untouched: still open, still repeating the same way, and it hasn't
+              // spawned a copy of its own. Only then is undo just "take it back".
+              const untouched = c.repeat !== "none" && !!copy && copy.done !== true &&
+                copy.spawnedFrom === raw.id && R.normalizeRepeat(copy.repeat) === c.repeat &&
+                idOrNull(copy.nextId) === null;
+              if (untouched) {
+                store.delete(c.nextId);
+                store.put({ ...raw, done: false, nextId: null });
+                events.push({ action: "task.copy_removed", taskId: c.nextId, changes: { spawnedFrom: raw.id } });
+              } else {
+                // The series has moved on (the copy was completed, stopped, deleted
+                // or has its own copy), so the reopened occurrence becomes a plain
+                // one-off task: no badge, nothing recurs from it, and its link to
+                // the copy is cut so a later undo can never touch that task.
+                store.put({ ...raw, done: false, repeat: "none", nextId: null });
+                events.push({ action: "task.become_oneoff", taskId: raw.id, changes: { repeat: "none" } });
+              }
+            };
           };
-        };
-      });
+        })
+      );
     },
 
     // End a series: the task stays, but no longer repeats.
-    stopRepeating(id) {
-      return run("readwrite", (store) => {
-        store.get(id).onsuccess = (e) => {
-          if (e.target.result) store.put({ ...e.target.result, repeat: "none" });
-        };
-      });
+    stopRepeating(id, meta) {
+      return logged(meta, { action: "task.stop_repeating", taskId: id }, (events) =>
+        run("readwrite", (store) => {
+          store.get(id).onsuccess = (e) => {
+            if (!e.target.result) return;
+            store.put({ ...e.target.result, repeat: "none" });
+            events.push({ action: "task.stop_repeating", taskId: id, changes: { repeat: "none" } });
+          };
+        })
+      );
     },
 
-    remove: (id) => run("readwrite", (s) => s.delete(id)),
+    remove(id, meta) {
+      return logged(meta, { action: "task.delete", taskId: id }, async (events) => {
+        await run("readwrite", (s) => s.delete(id));
+        events.push({ action: "task.delete", taskId: id, changes: {} });
+      });
+    },
   };
 })();

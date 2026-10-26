@@ -49,9 +49,20 @@
     <ul id="task-list"></ul>
     <p id="empty" class="muted">No tasks yet. Add one above.</p>
     <p id="count" class="muted"></p>
+
+    <details id="activity" class="activity">
+      <summary id="activity-summary">Activity log</summary>
+      <div class="activity-tools">
+        <button type="button" id="log-export">Export JSONL</button>
+        <button type="button" id="log-clear" class="secondary">Clear log</button>
+      </div>
+      <p id="activity-empty" class="muted" hidden>No activity yet.</p>
+      <ol id="activity-list" class="activity-list"></ol>
+    </details>
   </main>
 
   <script src="recurrence.js"></script>
+  <script src="logger.js"></script>
   <script src="db.js"></script>
   <script src="app.js"></script>
 </body>
