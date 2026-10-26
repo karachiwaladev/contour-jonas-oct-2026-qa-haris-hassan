@@ -1,7 +1,7 @@
 # Eval report: issue-7
 
-**Result: PASS**. 35 passed, 0 not executed, 0 incomplete, 0 with unexpected failures, 6 unit, 1 skipped. 196 log entries read, 0 malformed, 0 unknown case tags.
-Generated 2026-10-26T11:42:07.009Z.
+**Result: PASS**. 35 passed, 0 not executed, 0 incomplete, 0 with unexpected failures, 6 unit, 1 skipped. 208 log entries read, 0 malformed, 0 unknown case tags.
+Generated 2026-10-26T11:46:51.921Z.
 
 | Case | Auto | Status | Missing actions / note |
 |------|------|--------|------------------------|

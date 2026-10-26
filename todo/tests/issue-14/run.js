@@ -419,6 +419,19 @@ async function e2e() {
       JSON.stringify(evalPart.malformed) === '[{"line":1,"reason":"invalid action"}]', JSON.stringify({ logged: r, evalPart }));
     await collect();
 
+    // Visual state for the PR (not a test case): the panel after real UI actions.
+    if (process.env.SCREENSHOTS) {
+      await ev(`TodoLog.setTestCase(null); await T.reset(); await TodoLog.clear({ silent: true }); await TodoLog.flush();
+        await T.add("Pay rent", T.ymd(0), "home", "monthly"); await T.add("Buy milk", "", "shop", "none");
+        T.items("Pay rent")[0].querySelector("input[type=checkbox]").click(); await T.wait();
+        document.querySelector('#status-filter [data-status="active"]').click(); await T.wait();
+        document.querySelector('#status-filter [data-status="all"]').click(); await T.wait();
+        T.items("Buy milk")[0].querySelector(".delete").click(); await T.wait();
+        await TodoDB.add("Added by a script", {}); await render();
+        document.getElementById("activity").open = true; await renderActivity(); await T.wait(300);`);
+      await shot("02-activity-log-user-and-api.png");
+    }
+
     // TC-39 the app works when logger.js fails to load
     await b.send("Network.enable");
     await b.send("Network.setBlockedURLs", { urls: ["*logger.js*"] });
@@ -447,7 +460,8 @@ async function e2e() {
 
 // ---------------------------------------------------------------- TC-26 regression
 function regression() {
-  const run = spawnSync(process.execPath, [path.join(TODO_DIR, "tests", "issue-7", "run.js")], { encoding: "utf8", timeout: 300000 });
+  const env = { ...process.env }; delete env.SCREENSHOTS; // the issue-7 suite keeps its own screenshots
+  const run = spawnSync(process.execPath, [path.join(TODO_DIR, "tests", "issue-7", "run.js")], { encoding: "utf8", timeout: 300000, env });
   const summary = (run.stdout || "").trim().split("\n").pop();
   let evalOk = false, evalDetail = "missing";
   try {
