@@ -29,6 +29,14 @@
             <option value="monthly">Monthly</option>
           </select>
         </label>
+        <label class="field">
+          <span>Priority</span>
+          <select id="task-priority" aria-label="Priority">
+            <option value="high">High</option>
+            <option value="medium" selected>Medium</option>
+            <option value="low">Low</option>
+          </select>
+        </label>
         <label class="field grow">
           <span>Tags</span>
           <input id="task-tags" type="text" placeholder="work, urgent" aria-label="Tags, comma-separated (optional)" maxlength="200">
@@ -42,7 +50,15 @@
         <button type="button" data-status="active" aria-pressed="false">Active</button>
         <button type="button" data-status="completed" aria-pressed="false">Completed</button>
       </div>
-      <select id="tag-filter" aria-label="Filter by tag"></select>
+      <div class="filter-selects">
+        <select id="priority-filter" aria-label="Filter by priority">
+          <option value="">All priorities</option>
+          <option value="high">High</option>
+          <option value="medium">Medium</option>
+          <option value="low">Low</option>
+        </select>
+        <select id="tag-filter" aria-label="Filter by tag"></select>
+      </div>
     </div>
 
     <p id="error" class="error" role="alert" hidden></p>

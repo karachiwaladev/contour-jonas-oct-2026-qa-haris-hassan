@@ -42,7 +42,7 @@ projects/<project-name>/  ← one folder per project, each with its own CLAUDE.m
 
 | Project | Path | Summary | Ticket |
 |---------|------|---------|--------|
-| todo | [todo/](todo/CLAUDE.md) | Todo app: create, complete and delete tasks; due dates, tags, status and tag filters; recurring tasks (daily/weekly/monthly); action log + test eval; IndexedDB, no build step | #4, #5, #7, #14 |
+| todo | [todo/](todo/CLAUDE.md) | Todo app: create, complete and delete tasks; due dates, tags, status and tag filters; recurring tasks (daily/weekly/monthly); action log + test eval; priority + inline edit; IndexedDB, no build step | #4, #5, #7, #14, #15 |
 
 ## Working a ticket
 

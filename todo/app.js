@@ -8,6 +8,10 @@ const input = document.getElementById("task-title");
 const dueInput = document.getElementById("task-due");
 const tagsInput = document.getElementById("task-tags");
 const repeatInput = document.getElementById("task-repeat");
+const priorityInput = document.getElementById("task-priority");
+const priorityFilter = document.getElementById("priority-filter");
+const PRIORITY_LABELS = { high: "High", medium: "Medium", low: "Low" };
+const PRIORITY_RANK = { high: 0, medium: 1, low: 2 };
 const list = document.getElementById("task-list");
 const empty = document.getElementById("empty");
 const count = document.getElementById("count");
@@ -15,7 +19,10 @@ const statusButtons = [...document.querySelectorAll("#status-filter button")];
 const tagFilter = document.getElementById("tag-filter");
 
 // Filters reset on reload by design (ticket #5 scope).
-const filters = { status: "all", tag: "" };
+const filters = { status: "all", tag: "", priority: "" };
+
+// The open task being edited inline (at most one), or null.
+let editingId = null;
 
 // Local calendar date as "YYYY-MM-DD", comparable with stored due dates.
 const today = Recurrence.today;
@@ -92,7 +99,82 @@ function dueBadge(task) {
   return badge;
 }
 
+// Inline edit form for an open task: title, due, repeat, priority, tags.
+// Enter saves, Escape or Cancel discards. A blank title is caught here (no
+// save, nothing logged); anything the data layer rejects is shown in the form.
+function editItem(task) {
+  const li = document.createElement("li");
+  li.className = "task editing";
+  li.dataset.id = task.id;
+
+  const form = document.createElement("form");
+  form.className = "edit-form";
+  form.noValidate = true;
+  const field = (tag, cls, attrs = {}) => {
+    const el = document.createElement(tag);
+    el.className = cls;
+    for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
+    return el;
+  };
+  const select = (cls, label, options, value) => {
+    const s = field("select", cls, { "aria-label": label });
+    s.replaceChildren(...Object.entries(options).map(([v, t]) => new Option(t, v)));
+    s.value = value;
+    return s;
+  };
+
+  const title = field("input", "edit-title", { type: "text", maxlength: "200", "aria-label": "Title" });
+  title.value = task.title;
+  const due = field("input", "edit-due", { type: "date", "aria-label": "Due date" });
+  due.value = task.due || "";
+  const repeat = select("edit-repeat", "Repeat", { none: "None", daily: "Daily", weekly: "Weekly", monthly: "Monthly" }, task.repeat);
+  const priority = select("edit-priority", "Priority", PRIORITY_LABELS, task.priority);
+  const tags = field("input", "edit-tags", { type: "text", maxlength: "200", placeholder: "work, urgent", "aria-label": "Tags, comma-separated" });
+  tags.value = (task.tags || []).join(", ");
+  const error = field("p", "edit-error", { role: "alert" });
+  error.hidden = true;
+  const save = field("button", "edit-save", { type: "submit" });
+  save.textContent = "Save";
+  const cancel = field("button", "edit-cancel secondary", { type: "button" });
+  cancel.textContent = "Cancel";
+
+  const close = () => { editingId = null; render(); };
+  cancel.addEventListener("click", close);
+  form.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); close(); } });
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!title.value.trim()) {
+      error.textContent = "The title can't be empty.";
+      error.hidden = false;
+      title.focus();
+      return;
+    }
+    try {
+      await TodoDB.update(task.id, { title: title.value, due: due.value || null, tags: tags.value,
+        repeat: repeat.value, priority: priority.value }, USER);
+      editingId = null;
+      clearError();
+      await render();
+    } catch (err) {
+      error.textContent = `Couldn't save: ${err && err.message ? err.message : err}`;
+      error.hidden = false;
+    }
+  });
+
+  const row = document.createElement("div");
+  row.className = "edit-fields";
+  row.append(due, repeat, priority, tags);
+  const actions = document.createElement("div");
+  actions.className = "edit-actions";
+  actions.append(save, cancel);
+  form.append(title, row, error, actions);
+  li.append(form);
+  setTimeout(() => title.focus(), 0);
+  return li;
+}
+
 function taskItem(task) {
+  if (!task.done && task.id === editingId) return editItem(task);
   const li = document.createElement("li");
   li.className = task.done ? "task done" : "task";
   li.dataset.id = task.id;
@@ -116,6 +198,10 @@ function taskItem(task) {
 
   const meta = document.createElement("div");
   meta.className = "meta";
+  const prio = document.createElement("span");
+  prio.className = `priority ${task.priority}`;
+  prio.textContent = PRIORITY_LABELS[task.priority] || "Medium";
+  meta.append(prio);
   const badge = dueBadge(task);
   if (badge) meta.append(badge);
   // Only the open head of a series repeats: a completed occurrence, or a
@@ -160,14 +246,31 @@ function taskItem(task) {
   del.addEventListener("click", () => act("delete the task", () => TodoDB.remove(task.id, USER), "task.delete", task.id));
 
   label.append(checkbox, body);
-  li.append(label, del);
+  if (task.done) {
+    li.append(label, del); // completed tasks aren't editable
+  } else {
+    const edit = document.createElement("button");
+    edit.type = "button";
+    edit.className = "edit secondary";
+    edit.textContent = "Edit";
+    edit.setAttribute("aria-label", `Edit "${task.title}"`);
+    edit.addEventListener("click", () => { editingId = task.id; render(); }); // one edit at a time
+    const actions = document.createElement("div");
+    actions.className = "task-actions";
+    actions.append(edit, del);
+    li.append(label, actions);
+  }
   return li;
 }
 
-// Open tasks: soonest due first, undated last, then newest. Completed: newest first.
+// Open tasks: High, Medium, Low; then soonest due first, undated last; then
+// newest. Completed: newest first.
 function compareTasks(a, b) {
   if (a.done !== b.done) return a.done - b.done;
   if (!a.done) {
+    const pa = PRIORITY_RANK[a.priority] ?? 1;
+    const pb = PRIORITY_RANK[b.priority] ?? 1;
+    if (pa !== pb) return pa - pb;
     const ad = a.due || "9999-12-31";
     const bd = b.due || "9999-12-31";
     if (ad !== bd) return ad < bd ? -1 : 1;
@@ -193,6 +296,7 @@ function matches(task) {
   if (filters.status === "active" && task.done) return false;
   if (filters.status === "completed" && !task.done) return false;
   if (filters.tag && !(task.tags || []).includes(filters.tag)) return false;
+  if (filters.priority && task.priority !== filters.priority) return false;
   return true;
 }
 
@@ -217,7 +321,7 @@ async function render() {
   const shown = tasks.filter(matches).sort(compareTasks);
   list.replaceChildren(...shown.map(taskItem));
 
-  const filtered = filters.status !== "all" || filters.tag !== "";
+  const filtered = filters.status !== "all" || filters.tag !== "" || filters.priority !== "";
   empty.hidden = shown.length > 0;
   empty.textContent = tasks.length === 0 ? "No tasks yet. Add one above." : "No tasks match this filter.";
 
@@ -313,12 +417,14 @@ form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const title = input.value.trim();
   if (adding || !title) return;
-  const submitted = { title: input.value, due: dueInput.value, tags: tagsInput.value, repeat: repeatInput.value };
+  const submitted = { title: input.value, due: dueInput.value, tags: tagsInput.value, repeat: repeatInput.value,
+    priority: priorityInput.value };
   adding = true;
   form.reset();
   input.focus();
   const ok = await act("add the task", () =>
-    TodoDB.add(title, { due: submitted.due || null, tags: submitted.tags, repeat: submitted.repeat }, USER),
+    TodoDB.add(title, { due: submitted.due || null, tags: submitted.tags, repeat: submitted.repeat,
+      priority: submitted.priority }, USER),
     "task.add"
   );
   adding = false;
@@ -327,7 +433,14 @@ form.addEventListener("submit", async (e) => {
     dueInput.value = submitted.due;
     tagsInput.value = submitted.tags;
     repeatInput.value = submitted.repeat;
+    priorityInput.value = submitted.priority;
   }
+});
+
+priorityFilter.addEventListener("change", () => {
+  filters.priority = priorityFilter.value;
+  Log.log({ action: "ui.filter_priority", actor: USER, changes: { priority: filters.priority || "all" } });
+  render();
 });
 
 for (const b of statusButtons) {

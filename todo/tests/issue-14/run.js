@@ -124,7 +124,7 @@ async function e2e() {
     const today = await ev(`return T.ymd(0);`);
     check("TC-01", "UI add logged with actor user, changes, no title",
       r.length === 1 && r[0].actor === "user" && Number.isInteger(r[0].taskId) && r[0].outcome === "ok" &&
-      JSON.stringify(r[0].changes) === JSON.stringify({ done: false, repeat: "none", due: today, tags: 1 }), JSON.stringify(r));
+      JSON.stringify(r[0].changes) === JSON.stringify({ done: false, repeat: "none", due: today, tags: 1, priority: "medium" }), JSON.stringify(r));
     await collect();
 
     // TC-02 complete + reopen through the UI

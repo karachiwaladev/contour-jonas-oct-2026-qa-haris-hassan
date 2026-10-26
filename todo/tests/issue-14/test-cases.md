@@ -13,7 +13,7 @@ Written from the approved plan **before** implementation.
 
 | ID | Requirement | Type | Preconditions | Steps | Expected result | Expected log | Auto | Result |
 |----|-------------|------|---------------|-------|-----------------|--------------|------|--------|
-| TC-01 | Log a person's add | Functional | Empty app and log | Add "Milk" through the form, due `T`, tag `shop` | One `task.add` entry: actor `user`, the new taskId, `changes` = `{done:false, repeat:"none", due:T, tags:1}`, outcome `ok` | task.add@user | e2e | ✅ |
+| TC-01 | Log a person's add | Functional | Empty app and log | Add "Milk" through the form, due `T`, tag `shop` | One `task.add` entry: actor `user`, the new taskId, `changes` = `{done:false, repeat:"none", due:T, tags:1, priority:"medium"}` (priority added by #15), outcome `ok` | task.add@user | e2e | ✅ |
 | TC-02 | Log complete and reopen | Functional | One task | Tick it, then untick it | `task.complete`, then `task.reopen`, both actor `user`, same taskId | task.complete@user, task.reopen@user | e2e | ✅ |
 | TC-03 | Log recurring steps | Functional | Daily task due `T` | Tick it, then untick it | `task.complete`, then `task.spawn` (taskId = new copy, `changes.due` = `T+1`); then `task.reopen` and `task.copy_removed` | task.complete, task.spawn, task.reopen, task.copy_removed | e2e | ✅ |
 | TC-04 | Log series changes | Functional | Daily A ticked (B created) | Press Stop repeating on B; tick B; untick A | `task.stop_repeating` (B); then for A: `task.reopen` and `task.become_oneoff` | task.stop_repeating, task.become_oneoff | e2e | ✅ |

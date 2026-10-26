@@ -195,3 +195,24 @@ ul { list-style: none; margin: 12px 0 0; padding: 0; }
 .activity-list li span { overflow-wrap: anywhere; }
 .activity-list [data-col="time"], .activity-list [data-col="task"] { color: var(--muted); }
 .activity-list li.error-row { color: var(--danger); }
+
+/* Priority badges (ticket #15) */
+.priority { font-size: 11px; font-weight: 600; padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.03em; }
+.priority.high { color: var(--danger); background: var(--danger-soft); }
+.priority.medium { color: var(--text); background: var(--border); }
+.priority.low { color: var(--muted); background: transparent; border: 1px solid var(--border); }
+
+.filter-selects { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Task row actions and the inline edit form */
+.task-actions { display: flex; gap: 6px; flex-shrink: 0; }
+button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--border); }
+.task .edit { padding: 6px 10px; }
+.task.editing { display: block; }
+.edit-form { display: flex; flex-direction: column; gap: 8px; }
+.edit-fields { display: flex; gap: 8px; flex-wrap: wrap; }
+.edit-fields input, .edit-fields select { padding: 6px 10px; font-size: 14px; }
+.edit-fields .edit-tags { flex: 1; min-width: 160px; }
+.edit-actions { display: flex; gap: 8px; }
+.edit-actions button { padding: 6px 14px; font-size: 14px; }
+.edit-error { margin: 0; color: var(--danger); font-size: 13px; }

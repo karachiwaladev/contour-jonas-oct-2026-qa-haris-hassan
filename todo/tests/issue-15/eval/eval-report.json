@@ -1,16 +1,16 @@
 {
   "suite": "issue-15",
-  "generatedAt": "2026-10-26T11:54:29.252Z",
-  "ok": false,
+  "generatedAt": "2026-10-26T11:59:39.912Z",
+  "ok": true,
   "summary": {
     "cases": 25,
-    "pass": 2,
+    "pass": 23,
     "unit": 0,
     "skipped": 2,
-    "notExecuted": 20,
-    "incomplete": 1,
+    "notExecuted": 0,
+    "incomplete": 0,
     "unexpectedError": 0,
-    "entries": 5,
+    "entries": 119,
     "malformed": 0,
     "unknown": 0
   },
@@ -23,124 +23,197 @@
       "unexpected": [],
       "actions": [
         "task.delete",
-        "test.case_start"
+        "test.case_start",
+        "ui.filter_priority"
       ]
     },
     {
       "id": "TC-02",
       "auto": "e2e",
-      "status": "incomplete",
-      "missing": [
-        "task.add@user"
-      ],
+      "status": "pass",
+      "missing": [],
       "unexpected": [],
       "actions": [
+        "task.add",
         "test.case_start"
       ]
     },
     {
       "id": "TC-03",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.add@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
       ]
     },
     {
       "id": "TC-04",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "ui.filter_priority@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
       ]
     },
     {
       "id": "TC-05",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "ui.filter_priority@user",
-        "ui.filter_status@user",
-        "ui.filter_tag@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority",
+        "ui.filter_status",
+        "ui.filter_tag"
       ]
     },
     {
       "id": "TC-06",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": []
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
     },
     {
       "id": "TC-07",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": []
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
     },
     {
       "id": "TC-08",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.edit@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
       ]
     },
     {
       "id": "TC-09",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": []
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
     },
     {
       "id": "TC-10",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.edit@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
       ]
     },
     {
       "id": "TC-11",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": []
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
     },
     {
       "id": "TC-12",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.edit@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.delete",
+        "task.edit",
+        "test.case_start",
+        "ui.filter_priority"
       ]
     },
     {
       "id": "TC-13",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": []
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
     },
     {
       "id": "TC-14",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.complete@user",
-        "task.spawn@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.delete",
+        "task.spawn",
+        "test.case_start",
+        "ui.filter_priority"
       ]
     },
     {
       "id": "TC-15",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.edit@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
       ]
     },
     {
       "id": "TC-16",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.edit@api"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "task.edit",
+        "test.case_start",
+        "ui.filter_priority"
       ]
     },
     {
@@ -156,46 +229,73 @@
     {
       "id": "TC-18",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": []
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start",
+        "ui.filter_priority"
+      ]
     },
     {
       "id": "TC-19",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": []
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
     },
     {
       "id": "TC-20",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.edit@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "task.edit",
+        "test.case_start",
+        "ui.filter_priority"
       ]
     },
     {
       "id": "TC-21",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.edit@user",
-        "task.spawn@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.delete",
+        "task.edit",
+        "task.spawn",
+        "test.case_start",
+        "ui.filter_priority"
       ]
     },
     {
       "id": "TC-22",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.edit:error@api"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit:error",
+        "test.case_start"
       ]
     },
     {
       "id": "TC-23",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.edit@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
       ]
     },
     {

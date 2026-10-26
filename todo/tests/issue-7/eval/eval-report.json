@@ -1,6 +1,6 @@
 {
   "suite": "issue-7",
-  "generatedAt": "2026-10-26T11:46:51.921Z",
+  "generatedAt": "2026-10-26T12:00:28.908Z",
   "ok": true,
   "summary": {
     "cases": 42,
@@ -10,7 +10,7 @@
     "notExecuted": 0,
     "incomplete": 0,
     "unexpectedError": 0,
-    "entries": 208,
+    "entries": 196,
     "malformed": 0,
     "unknown": 0
   },
@@ -363,12 +363,9 @@
       "missing": [],
       "unexpected": [],
       "actions": [
-        "task.add",
         "task.complete",
-        "task.delete",
         "task.spawn",
-        "test.case_start",
-        "ui.filter_status"
+        "test.case_start"
       ]
     },
     {
