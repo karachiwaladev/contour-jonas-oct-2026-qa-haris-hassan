@@ -1,6 +1,6 @@
 ---
 name: factory-loop
-description: Work through a GitHub repo's open issues like a factory line — read each ticket, react 👍, then act on it: answer questions, carry out repo tasks (create/edit files, scaffold folders, docs, config), or, for building a project or feature, clarify → plan → get approval → build → verify in Chrome via chrome-devtools → attach screenshots to the ticket. Every ticket that changes files gets its own branch when work starts and a pull request when it's done; the PR waits for manual review and approval, and only then is it merged into main and the ticket closed (changes requested are fixed on the same branch). Then it keeps polling for new tickets and for PR reviews. Never takes destructive actions. Use this whenever the user asks to process, answer, work through, build from, triage-and-close, or "loop over" GitHub issues/tickets in the current repo, or to keep watching the repo for new tickets, even if they don't say "factory-loop".
+description: Work through a GitHub repo's open issues like a factory line — read each ticket, react 👍, then act on it: answer questions, carry out repo tasks (create/edit files, scaffold folders, docs, config), or, for building a project or feature, clarify → plan → get approval → write test cases → build → security scan with the claude-security plugin → execute all test cases in Chrome via chrome-devtools → attach results and screenshots. Every ticket that changes files gets its own branch when work starts and a pull request when it's done; the PR waits for manual review and approval, and only then is it merged into main and the ticket closed (changes requested are fixed on the same branch). Then it keeps polling for new tickets and for PR reviews. Never takes destructive actions. Use this whenever the user asks to process, answer, work through, build from, triage-and-close, or "loop over" GitHub issues/tickets in the current repo, or to keep watching the repo for new tickets, even if they don't say "factory-loop".
 ---
 
 # Factory loop
@@ -8,8 +8,14 @@ description: Work through a GitHub repo's open issues like a factory line — re
 Process open GitHub issues end to end, then keep checking for new ones. Every ticket is acted on, not just answered:
 
 - **Question:** read → 👍 → answer in a comment → close.
-- **Action task:** read → 👍 → **new branch** → do it (files, folders, docs, config) → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
-- **Build task:** read → 👍 → clarify → plan → **plan approval** → **new branch** → build → verify in the browser → screenshots → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
+- **Action task:** read → 👍 → **new branch** → do it (files, folders, docs, config) → if any logic changed: **test cases → security scan → run tests** → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
+- **Build task:** read → 👍 → clarify → plan → **plan approval** → **new branch** → **write test cases** → build → **security scan (claude-security)** → **execute all test cases** in the browser → screenshots → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
+
+**Quality gates.** Nothing reaches a PR until it has passed all three:
+
+1. **Test cases** are written from the approved plan, before any code. They cover functional, edge, regression and security cases.
+2. A **claude-security** scan of the branch's changes finds nothing at MEDIUM or above, or every such finding has been fixed and re-scanned.
+3. **Every test case passes** when run against the finished build.
 
 Questions run fully automatically. Every ticket that changes files stops for a human before it lands: its PR waits for manual review, and nothing is merged or closed until that PR is approved. A build task also stops twice before building, once for clarifying questions and once to approve the plan, because building is the expensive part to redo.
 
@@ -116,8 +122,10 @@ Answer in a short Markdown comment:
 ### Action task
 
 1. Start the ticket branch (see *Branch and PR*).
-2. Do the work. Meet every explicit constraint in the ticket, such as line limits, folder layout or file names, and check them afterwards (for example `wc -l`). Follow `CLAUDE.md`, including adding new project folders to its index.
-3. Commit, push, open the PR and hand it over for review (see *Branch and PR*). Don't merge it and don't close the ticket.
+2. **If the task changes logic**, such as code, scripts, hooks, or config that executes: write test cases first, in `tests/issue-<n>/test-cases.md` (plus a runner if possible), the same way as build-flow step 4. Docs-only or text-only changes skip this; say "docs only, no tests" in the PR.
+3. Do the work. Meet every explicit constraint in the ticket, such as line limits, folder layout or file names, and check them afterwards (for example `wc -l`). Follow `CLAUDE.md`, including adding new project folders to its index.
+4. **If logic changed**, run the claude-security scan of changes at `medium` (build-flow step 6), then execute every test case and record the results (build-flow step 7). Fix anything at MEDIUM or above, and any failure, before going on.
+5. Commit, push, open the PR with the test and security results, and hand it over for review (see *Branch and PR*). Don't merge it and don't close the ticket.
 
 ### Build task
 
@@ -125,10 +133,12 @@ Read `references/build-flow.md` and follow it. In short:
 
 1. Label the ticket `factory:in-progress` so other passes leave it alone.
 2. **Clarify:** ask the user, with AskUserQuestion, about real ambiguities only. Give sensible options and recommend one.
-3. **Plan:** write a short plan covering scope, data changes, UI, files and the verification checklist. Get the user's approval with AskUserQuestion. If they ask for changes, revise and ask again; don't build without a yes.
-4. **Build:** start the ticket branch (only after approval), implement, and keep the project's `CLAUDE.md` up to date.
-5. **Verify** in Chrome with the chrome-devtools MCP tools: run every checklist item, check the console for errors, and take screenshots.
-6. **Hand over for review:** commit the code and screenshots, push, open the PR with the screenshots embedded, and swap the label to `factory:awaiting-review`. Merging and closing happen only after a manual approval (step 3).
+3. **Plan:** write a short plan covering scope, data, UI, security considerations, files and the test approach. Get the user's approval with AskUserQuestion. If they ask for changes, revise and ask again; don't build without a yes.
+4. **Write test cases:** start the ticket branch, then write `tests/issue-<n>/test-cases.md` (functional, edge, regression and security cases, each with an ID, steps and an expected result) and an automated runner. Commit them before any feature code.
+5. **Build:** implement securely and keep the project's `CLAUDE.md` up to date.
+6. **Security scan:** run the claude-security skill (`claude-security:claude-security`) to scan this branch's changes against `main`. Fix every finding at MEDIUM or above, add a security test case for each, and re-scan until it's clean.
+7. **Execute all test cases** against the finished build: the automated runner, plus manual cases and screenshots through the chrome-devtools MCP tools. Record ✅ or ❌ in `test-cases.md`. Fix failures and re-run the whole suite until everything passes.
+8. **Hand over for review:** commit the code, test results and screenshots, push, and open the PR with the test results, security summary and screenshots. Swap the label to `factory:awaiting-review`. Merging and closing happen only after a manual approval (step 3).
 
 ### Branch and PR
 
@@ -156,7 +166,7 @@ The body contains:
 
 - `Closes #<issue>`
 - What changed, and how each requirement in the ticket was met.
-- How it was verified: the checklist with ✅ results.
+- How it was verified: test results (`<passed>/<total>`, with a link to `test-cases.md`) and the claude-security scan summary, or "docs only, no tests or scan".
 - For a build task, the screenshots.
 
 - A **How to approve** line: "Approve this PR in GitHub's review UI, or comment `/approve`. To ask for changes, request changes or comment what to fix."
