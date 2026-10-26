@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation.
 
-**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-26** (27 cases). TC-28–TC-32 were added after code-review round 1 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (5 cases). TC-33–TC-38 were added after code-review round 2 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (6 cases). Not executed yet.
+**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-26** (27 cases). TC-28–TC-32 were added after code-review round 1 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (5 cases). TC-33–TC-38 were added after code-review round 2 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (6 cases). TC-39–TC-40 were added after code-review round 3 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (2 cases). Not executed yet.
 
 **Terms:**
 
@@ -51,6 +51,8 @@ Written from the approved plan **before** implementation.
 | TC-36 | Logging retries after a failed open (code review round 2 #5) | Regression | The first open of `todo-logs` fails | Then add a task through the form | The add is logged (the logger retried) | task.add@user | e2e | ⏳ |
 | TC-37 | No log for a stop that changes nothing (code review round 2 #6) | Regression | A non-repeating task | `TodoDB.stopRepeating(id)` | No `task.stop_repeating` entry | — | e2e | ⏳ |
 | TC-38 | UI-logged failures name the task, once (code review round 2 #7) | Regression | `TodoDB.remove` made to fail before the data layer | Press Delete on a task | Exactly one `task.delete` error entry, actor `user`, with that task's id | task.delete:error@user | e2e | ⏳ |
+| TC-39 | The app works without the logger (code review round 3 #1) | Regression | `logger.js` fails to load (blocked) | Open the app; add a task through the form | The task is added and shown; no error box; no errors other than the blocked file | — | e2e | ⏳ |
+| TC-40 | Action names can't spoof the eval (code review round 3 #2) | Security | — | `TodoLog.log({action:"task.add@user"})`; eval a fixture containing that action name | Nothing is logged for that name; the eval reports the line as malformed ("invalid action"), and it doesn't satisfy `task.add@user` | — | unit + e2e | ⏳ |
 
 ## How to run (once implemented)
 

@@ -401,10 +401,42 @@ async function e2e() {
     check("TC-38", "UI-logged failure has the task id, logged once",
       r.errs.length === 1 && r.errs[0].taskId === r.id && r.errs[0].actor === "user", JSON.stringify(r));
     await collect();
+
+    // TC-40 action names can't spoof the eval (logger part here, eval part below)
+    await tag("TC-40");
+    r = await ev(`TodoLog.log({ action: "task.add@user" }); TodoLog.log({ action: "task.add:error" }); await TodoLog.flush();
+      return (await TodoLog.all()).filter(e => /[@:]/.test(e.action)).length;`);
+    let evalPart = { error: "eval not loaded" };
+    try {
+      const E = require(path.join(TODO_DIR, "tests", "eval", "eval-logs.js"));
+      const spec = "| ID | Auto |\n|---|---|\n| TC-01 | e2e |";
+      const bogus = JSON.stringify({ id: 1, ts: "2026-10-26T00:00:00.000Z", sessionId: "s", seq: 1, actor: "api", action: "task.add@user", testCase: "TC-01", outcome: "ok" });
+      const res = E.evaluate({ logText: bogus, specText: spec, expected: { "TC-01": ["task.add@user"] } });
+      evalPart = { ok: res.ok, malformed: res.malformed, status: res.cases[0].status };
+    } catch (e) { evalPart = { error: e.message }; }
+    check("TC-40", "action names with @ or : are rejected by the logger and malformed for the eval",
+      r === 0 && evalPart.ok === false && evalPart.status === "not-executed" &&
+      JSON.stringify(evalPart.malformed) === '[{"line":1,"reason":"invalid action"}]', JSON.stringify({ logged: r, evalPart }));
+    await collect();
+
+    // TC-39 the app works when logger.js fails to load
+    await b.send("Network.enable");
+    await b.send("Network.setBlockedURLs", { urls: ["*logger.js*"] });
+    const errs39 = consoleErrors.length;
+    await nav("/index.html");
+    r = await ev(`const f = id => document.getElementById(id);
+      f("task-title").value = "No logger"; f("new-task").requestSubmit(); await new Promise(r => setTimeout(r, 400));
+      return { hasLog: typeof TodoLog !== "undefined", titles: [...document.querySelectorAll("#task-list .title")].map(e => e.textContent),
+        errorBox: !f("error").hidden };`);
+    const new39 = consoleErrors.slice(errs39).filter((m) => !/logger\.js|ERR_BLOCKED_BY_CLIENT|Failed to load resource/.test(m));
+    await b.send("Network.setBlockedURLs", { urls: [] });
+    check("TC-39", "app works without the logger",
+      r.hasLog === false && r.titles.includes("No logger") && !r.errorBox && new39.length === 0, JSON.stringify({ r, new39 }));
+    await open();
   } catch (e) {
     check("E2E", "browser run", false, e.stack || e.message);
   } finally {
-    const unexpected = consoleErrors.filter((m) => !/TC-(13|16|38) injected failure|TC-16 logs unavailable|TC-36 first open fails/.test(m));
+    const unexpected = consoleErrors.filter((m) => !/TC-(13|16|38) injected failure|TC-16 logs unavailable|TC-36 first open fails|logger.js|ERR_BLOCKED_BY_CLIENT/.test(m));
     check("TC-27", "no unexpected console errors", unexpected.length === 0, unexpected.join(" | "));
     await b.close();
   }

@@ -1,16 +1,16 @@
 {
   "suite": "issue-14",
-  "generatedAt": "2026-10-26T11:35:09.570Z",
-  "ok": true,
+  "generatedAt": "2026-10-26T11:40:31.788Z",
+  "ok": false,
   "summary": {
-    "cases": 38,
+    "cases": 40,
     "pass": 27,
     "unit": 8,
-    "skipped": 3,
+    "skipped": 4,
     "notExecuted": 0,
     "incomplete": 0,
-    "unexpectedError": 0,
-    "entries": 135,
+    "unexpectedError": 1,
+    "entries": 138,
     "malformed": 0,
     "unknown": 0
   },
@@ -384,6 +384,25 @@
       "unexpected": [],
       "actions": [
         "task.delete:error",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-39",
+      "auto": "e2e",
+      "status": "skipped",
+      "note": "the logger is blocked on purpose in this case, so it can leave no entries"
+    },
+    {
+      "id": "TC-40",
+      "auto": "unit + e2e",
+      "status": "unexpected-error",
+      "missing": [],
+      "unexpected": [
+        "task.add:error"
+      ],
+      "actions": [
+        "task.add:error",
         "test.case_start"
       ]
     }

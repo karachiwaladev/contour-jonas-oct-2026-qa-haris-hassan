@@ -35,5 +35,9 @@
   "TC-33": ["task.delete@api"],
   "TC-36": ["task.add@user"],
   "TC-37": [],
-  "TC-38": ["task.delete:error@user"]
+  "TC-38": ["task.delete:error@user"],
+  "TC-39": {
+    "skip": "the logger is blocked on purpose in this case, so it can leave no entries"
+  },
+  "TC-40": []
 }
