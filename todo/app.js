@@ -15,7 +15,19 @@ const tagFilter = document.getElementById("tag-filter");
 const filters = { status: "all", tag: "" };
 
 // Local calendar date as "YYYY-MM-DD", comparable with stored due dates.
-const today = () => Recurrence.today();
+const today = Recurrence.today;
+
+// Run a storage action from a click, then redraw. A failed IndexedDB
+// transaction is logged, and the list is redrawn from what is actually stored,
+// so the UI never stays stuck on a stale state.
+async function act(what, fn) {
+  try {
+    await fn();
+  } catch (err) {
+    console.error(`Couldn't ${what}:`, err);
+  }
+  render();
+}
 
 function formatDue(due) {
   const [y, m, d] = due.split("-").map(Number);
@@ -52,10 +64,9 @@ function taskItem(task) {
   checkbox.type = "checkbox";
   checkbox.checked = task.done;
   checkbox.setAttribute("aria-label", `Mark "${task.title}" as done`);
-  checkbox.addEventListener("change", async () => {
-    await TodoDB.setDone(task.id, checkbox.checked);
-    render();
-  });
+  checkbox.addEventListener("change", () =>
+    act("update the task", () => TodoDB.setDone(task.id, checkbox.checked))
+  );
 
   const body = document.createElement("div");
   body.className = "body";
@@ -80,10 +91,9 @@ function taskItem(task) {
       stop.className = "stop-repeat";
       stop.textContent = "Stop repeating";
       stop.setAttribute("aria-label", `Stop repeating "${task.title}"`);
-      stop.addEventListener("click", async (e) => {
+      stop.addEventListener("click", (e) => {
         e.preventDefault(); // don't toggle the checkbox through the label
-        await TodoDB.stopRepeating(task.id);
-        render();
+        act("stop repeating", () => TodoDB.stopRepeating(task.id));
       });
       meta.append(stop);
     }
@@ -108,10 +118,7 @@ function taskItem(task) {
   del.className = "delete";
   del.textContent = "Delete";
   del.setAttribute("aria-label", `Delete "${task.title}"`);
-  del.addEventListener("click", async () => {
-    await TodoDB.remove(task.id);
-    render();
-  });
+  del.addEventListener("click", () => act("delete the task", () => TodoDB.remove(task.id)));
 
   label.append(checkbox, body);
   li.append(label, del);

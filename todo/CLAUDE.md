@@ -26,18 +26,18 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
   - Missed occurrences are skipped, so the next due date is always on or after today.
   - Monthly tasks keep `anchorDay`, clamped to the month's length, so Jan 31 → Feb 28 → Mar 31.
   - A repeat with no due date starts today.
-  - Reopening a completed task removes its still-open spawned copy (`nextId` / `spawnedFrom`).
+  - Each occurrence creates the next one **at most once** (`nextId`). Reopening a completed task removes its spawned copy only if that copy is untouched (still open, same repeat). If the copy was completed, stopped or deleted, it is kept and re-completing creates nothing, so there is never a second series.
   - **Stop repeating** sets `repeat: "none"`.
 - Tags are trimmed, lowercased and deduplicated, with at most 30 characters each (`TodoDB.normalizeTags`).
 - Sort order: open tasks before completed ones. Open tasks are ordered soonest-due first, with undated tasks last, then newest first.
 - Filters (status AND one tag) live in memory and reset on reload.
-- **Stored data is untrusted.** `TodoDB` coerces every field on read: the repeat value is checked against a fixed list, invalid dates become `null`, and tags are cleaned up.
+- **Stored data is untrusted.** `TodoDB` coerces every field on read: the repeat value is checked against a fixed list, invalid dates become `null`, tags are cleaned up, `createdAt` becomes a number, `anchorDay` becomes 1–31 or `null`, and the ids (`nextId`/`spawnedFrom`) become integers or `null`.
 - Render user input with `textContent` or `new Option(text)` only, never `innerHTML`.
 - To change the data shape, bump `DB_VERSION` and migrate existing records in `onupgradeneeded`. Never drop data (see the v1/v2 → v3 migration).
 
 ## Tests
 
-`node todo/tests/issue-7/run.js` runs the recurring-task suite: unit tests in Node, then end-to-end tests in headless Chrome. It needs Node 18+, Python 3 and Chrome; set `CHROME_PATH` if Chrome isn't in the default location. Set `SCREENSHOTS=<dir>` to save screenshots.
+`node todo/tests/issue-7/run.js` runs the recurring-task suite (TC-01–TC-29): unit tests in Node, then end-to-end tests in headless Chrome. It needs Node 18+, Python 3 and Chrome; set `CHROME_PATH` if Chrome isn't in the default location. Set `SCREENSHOTS=<dir>` to save screenshots.
 
 ## Manual test checklist
 

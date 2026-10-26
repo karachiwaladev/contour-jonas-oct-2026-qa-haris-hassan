@@ -43,17 +43,26 @@ const TodoDB = (() => {
     return dbPromise;
   }
 
-  // Run one request in a transaction and resolve with its result.
-  async function run(mode, makeRequest) {
+  // Run `work(store)` in one transaction. Resolves when the transaction commits,
+  // with the result of the request `work` returns (if any); rejects on error or abort.
+  async function run(mode, work) {
     const db = await open();
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE, mode);
-      const req = makeRequest(tx.objectStore(STORE));
-      tx.oncomplete = () => resolve(req.result);
+      const req = work(tx.objectStore(STORE));
+      tx.oncomplete = () => resolve(req ? req.result : undefined);
       tx.onerror = () => reject(tx.error);
-      tx.onabort = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error("IndexedDB transaction aborted"));
     });
   }
+
+  // A day of the month 1–31, or null.
+  function anchorOf(value) {
+    const n = Number(value);
+    return Number.isInteger(n) && n >= 1 && n <= 31 ? n : null;
+  }
+
+  const idOrNull = (value) => (Number.isInteger(value) ? value : null);
 
   // "Work, work , URGENT," → ["work", "urgent"]
   function normalizeTags(input) {
@@ -76,6 +85,10 @@ const TodoDB = (() => {
       due: R.isValidDate(task.due) ? task.due : null,
       tags: normalizeTags(Array.isArray(task.tags) ? task.tags : []),
       repeat: R.normalizeRepeat(task.repeat),
+      createdAt: Number.isFinite(Number(task.createdAt)) ? Number(task.createdAt) : 0,
+      anchorDay: anchorOf(task.anchorDay),
+      nextId: idOrNull(task.nextId),
+      spawnedFrom: idOrNull(task.spawnedFrom),
     };
   }
 
@@ -98,55 +111,60 @@ const TodoDB = (() => {
       );
     },
 
-    // Complete or reopen a task. Completing a recurring task also creates its
-    // next occurrence, in the same transaction, so concurrent calls can't make
-    // two copies; reopening removes that copy again if it's still open.
-    async setDone(id, done) {
-      const db = await open();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, "readwrite");
-        const store = tx.objectStore(STORE);
+    // Complete or reopen a task, in one transaction (concurrent calls can't
+    // make two copies).
+    // - Completing a recurring occurrence creates the next one, at most once
+    //   per occurrence: once `nextId` is set, the series has moved past it.
+    // - Reopening removes that copy only if it's untouched (still open and still
+    //   repeating the same way). If the copy was completed, stopped or deleted,
+    //   it and `nextId` are kept, so re-completing doesn't start a second series.
+    setDone(id, done) {
+      return run("readwrite", (store) => {
         store.get(id).onsuccess = (e) => {
           const raw = e.target.result;
           if (!raw || (raw.done === true) === done) return; // missing or already in that state
-          const task = { ...raw, done };
-          const repeat = R.normalizeRepeat(raw.repeat);
+          const c = clean(raw);
 
-          if (done && repeat !== "none") {
-            const c = clean(raw);
+          if (done) {
+            if (c.repeat === "none" || c.nextId !== null) {
+              store.put({ ...raw, done: true });
+              return;
+            }
+            const anchorDay = c.anchorDay ?? R.dayOf(c.due) ?? R.dayOf(R.today());
             const next = {
               title: c.title, done: false, createdAt: Date.now(),
-              due: R.nextDue(c.due, repeat, raw.anchorDay, R.today()),
-              tags: c.tags, repeat, anchorDay: raw.anchorDay ?? R.dayOf(c.due), spawnedFrom: raw.id,
+              due: R.nextDue(c.due, c.repeat, anchorDay, R.today()),
+              tags: c.tags, repeat: c.repeat, anchorDay, spawnedFrom: raw.id, nextId: null,
             };
-            store.add(next).onsuccess = (ev) => store.put({ ...task, nextId: ev.target.result });
-          } else if (!done && raw.nextId != null) {
-            store.get(raw.nextId).onsuccess = (ev) => {
-              const copy = ev.target.result;
-              if (copy && !copy.done && copy.spawnedFrom === raw.id) store.delete(raw.nextId);
-            };
-            store.put({ ...task, nextId: null });
-          } else {
-            store.put(task);
+            store.add(next).onsuccess = (ev) => store.put({ ...raw, done: true, nextId: ev.target.result });
+            return;
           }
+
+          if (c.nextId === null) {
+            store.put({ ...raw, done: false });
+            return;
+          }
+          store.get(c.nextId).onsuccess = (ev) => {
+            const copy = ev.target.result;
+            const untouched = !!copy && copy.done !== true && copy.spawnedFrom === raw.id &&
+              R.normalizeRepeat(copy.repeat) === c.repeat;
+            if (untouched) {
+              store.delete(c.nextId);
+              store.put({ ...raw, done: false, nextId: null });
+            } else {
+              store.put({ ...raw, done: false });
+            }
+          };
         };
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
-        tx.onabort = () => reject(tx.error);
       });
     },
 
     // End a series: the task stays, but no longer repeats.
-    async stopRepeating(id) {
-      const db = await open();
-      return new Promise((resolve, reject) => {
-        const tx = db.transaction(STORE, "readwrite");
-        const store = tx.objectStore(STORE);
+    stopRepeating(id) {
+      return run("readwrite", (store) => {
         store.get(id).onsuccess = (e) => {
           if (e.target.result) store.put({ ...e.target.result, repeat: "none" });
         };
-        tx.oncomplete = () => resolve();
-        tx.onerror = () => reject(tx.error);
       });
     },
 
