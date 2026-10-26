@@ -1,16 +1,16 @@
 {
   "suite": "issue-15",
-  "generatedAt": "2026-10-26T12:03:58.840Z",
-  "ok": false,
+  "generatedAt": "2026-10-26T12:06:42.178Z",
+  "ok": true,
   "summary": {
     "cases": 30,
-    "pass": 25,
+    "pass": 28,
     "unit": 0,
     "skipped": 2,
     "notExecuted": 0,
-    "incomplete": 3,
+    "incomplete": 0,
     "unexpectedError": 0,
-    "entries": 147,
+    "entries": 148,
     "malformed": 0,
     "unknown": 0
   },
@@ -315,15 +315,13 @@
     {
       "id": "TC-26",
       "auto": "e2e",
-      "status": "incomplete",
-      "missing": [
-        "task.become_oneoff@user"
-      ],
+      "status": "pass",
+      "missing": [],
       "unexpected": [],
       "actions": [
         "task.add",
+        "task.become_oneoff",
         "task.complete",
-        "task.copy_removed",
         "task.delete",
         "task.edit",
         "task.reopen",
@@ -335,14 +333,13 @@
     {
       "id": "TC-27",
       "auto": "e2e",
-      "status": "incomplete",
-      "missing": [
-        "task.edit:error@user"
-      ],
+      "status": "pass",
+      "missing": [],
       "unexpected": [],
       "actions": [
         "task.complete",
         "task.delete",
+        "task.edit:error",
         "test.case_start",
         "ui.filter_priority"
       ]
@@ -350,18 +347,14 @@
     {
       "id": "TC-28",
       "auto": "e2e",
-      "status": "incomplete",
-      "missing": [
-        "task.add:error@api",
-        "task.edit@user"
-      ],
-      "unexpected": [
-        "task.edit:error"
-      ],
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add",
+        "task.add:error",
         "task.delete",
-        "task.edit:error",
+        "task.edit",
         "test.case_start",
         "ui.filter_priority"
       ]

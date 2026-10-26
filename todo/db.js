@@ -14,6 +14,14 @@ const TodoDB = (() => {
   const PRIORITIES = ["high", "medium", "low"];
   const normalizePriority = (p) => (PRIORITIES.includes(p) ? p : "medium");
   const MAX_TITLE = 200;
+
+  // One title rule for add and edit: trimmed, not empty, at most MAX_TITLE.
+  function checkTitle(title) {
+    const t = typeof title === "string" ? title.trim() : "";
+    if (!t) throw new Error("The title can't be empty.");
+    if (t.length > MAX_TITLE) throw new Error(`The title can be at most ${MAX_TITLE} characters.`);
+    return t;
+  }
   const R = Recurrence;
   const BLOCKED_MESSAGE = "The todo database is being upgraded. Close other tabs with this app open, then reload.";
   let dbPromise = null;   // the open connection (or the open in progress)
@@ -179,9 +187,10 @@ const TodoDB = (() => {
       const cleanTags = normalizeTags(tags);
       const prio = normalizePriority(priority);
       return logged(meta, { action: "task.add" }, async (events) => {
+        const cleanTitle = checkTitle(title);
         const id = await run("readwrite", (s) =>
           s.add({
-            title, done: false, createdAt: Date.now(), due: date, tags: cleanTags,
+            title: cleanTitle, done: false, createdAt: Date.now(), due: date, tags: cleanTags,
             repeat: kind, anchorDay: R.dayOf(date), priority: prio,
           })
         );
@@ -194,19 +203,19 @@ const TodoDB = (() => {
 
     // Edit an open task. `fields` may hold title, due, tags, repeat, priority;
     // each is validated like on add, and anything invalid rejects the whole
-    // edit (nothing is stored). Completed tasks can't be edited. Choosing a
-    // repeat with no due date starts it today; a new due date or repeat resets
-    // the monthly anchor to the due date's day. The log records which fields
-    // changed (and the new due/repeat/priority, a tag count), never the title
-    // or tag text.
+    // edit (nothing is stored). It rejects if the task was completed or
+    // deleted meanwhile. Choosing a repeat with no due date starts it today; a
+    // new due date or repeat resets the monthly anchor to the due date's day.
+    // An edited task is marked `edited`, so undoing its parent never deletes
+    // it. The log records which fields changed (and the new due/repeat/
+    // priority, a tag count), never the title or tag text.
     update(id, fields = {}, meta) {
-      return logged(meta, { action: "task.edit", taskId: id }, (events) => {
+      return logged(meta, { action: "task.edit", taskId: id }, async (events) => {
         const want = {};
         if ("title" in fields) {
           const title = typeof fields.title === "string" ? fields.title.trim() : "";
           if (!title) throw new Error("The title can't be empty.");
-          if (title.length > MAX_TITLE) throw new Error(`The title can be at most ${MAX_TITLE} characters.`);
-          want.title = title;
+          want.title = title; // the length rule applies only if the title changes (legacy long titles stay editable)
         }
         if ("due" in fields) {
           if (fields.due === null || fields.due === "") want.due = null;
@@ -223,26 +232,31 @@ const TodoDB = (() => {
         }
         if ("tags" in fields) want.tags = normalizeTags(fields.tags);
 
-        return run("readwrite", (store) => {
+        let problem = null; // found inside the transaction; thrown once it ends (nothing was stored)
+        await run("readwrite", (store) => {
           store.get(id).onsuccess = (e) => {
             const raw = e.target.result;
-            if (!raw) return;
+            if (!raw || raw.done === true) { problem = "This task was completed or deleted."; return; }
             const c = clean(raw);
-            if (c.done) return; // completed tasks aren't editable; nothing changes
             const next = { ...c, ...want };
             if (next.repeat !== "none" && !next.due) next.due = R.today(); // a series needs a start date
             const changed = ["title", "due", "tags", "repeat", "priority"]
               .filter((k) => JSON.stringify(next[k]) !== JSON.stringify(c[k]));
             if (!changed.length) return;
+            if (changed.includes("title") && next.title.length > MAX_TITLE) {
+              problem = `The title can be at most ${MAX_TITLE} characters.`;
+              return;
+            }
             if (changed.includes("due") || changed.includes("repeat")) next.anchorDay = R.dayOf(next.due);
             store.put({ ...raw, title: next.title, due: next.due, tags: next.tags, repeat: next.repeat,
-              priority: next.priority, anchorDay: next.anchorDay });
+              priority: next.priority, anchorDay: next.anchorDay, edited: true });
             const log = { fields: changed };
             for (const k of ["due", "repeat", "priority"]) if (changed.includes(k)) log[k] = next[k];
             if (changed.includes("tags")) log.tags = next.tags.length;
             events.push({ action: "task.edit", taskId: id, changes: log });
           };
         });
+        if (problem) throw new Error(problem);
       });
     },
 
@@ -293,7 +307,7 @@ const TodoDB = (() => {
               // spawned a copy of its own. Only then is undo just "take it back".
               const untouched = c.repeat !== "none" && !!copy && copy.done !== true &&
                 copy.spawnedFrom === raw.id && R.normalizeRepeat(copy.repeat) === c.repeat &&
-                idOrNull(copy.nextId) === null;
+                idOrNull(copy.nextId) === null && copy.edited !== true; // an edited copy is the user's, never discarded
               if (untouched) {
                 store.delete(c.nextId);
                 store.put({ ...raw, done: false, nextId: null });

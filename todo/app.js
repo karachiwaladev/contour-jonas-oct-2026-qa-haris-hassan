@@ -99,6 +99,24 @@ function dueBadge(task) {
   return badge;
 }
 
+// The form's unsaved values, so a re-render (ticking another task, changing a
+// filter) redraws the form with what the user typed rather than the stored task.
+let editDraft = null;   // { id, title, due, tags, repeat, priority, error }
+let focusEdit = false;  // focus the title only when the form first opens
+let savingEdit = false; // one save at a time
+
+function startEdit(id) {
+  editingId = id;
+  editDraft = null;
+  focusEdit = true;
+  render();
+}
+
+function endEdit() {
+  editingId = null;
+  editDraft = null;
+}
+
 // Inline edit form for an open task: title, due, repeat, priority, tags.
 // Enter saves, Escape or Cancel discards. A blank title is caught here (no
 // save, nothing logged); anything the data layer rejects is shown in the form.
@@ -123,41 +141,63 @@ function editItem(task) {
     return s;
   };
 
+  const draft = editDraft && editDraft.id === task.id ? editDraft : {
+    id: task.id, title: task.title, due: task.due || "", tags: (task.tags || []).join(", "),
+    repeat: task.repeat, priority: task.priority, error: "",
+  };
+  editDraft = draft;
+
+  const repeatOptions = Object.fromEntries(Recurrence.REPEATS.map((r) => [r, Recurrence.LABELS[r] || "None"]));
   const title = field("input", "edit-title", { type: "text", maxlength: "200", "aria-label": "Title" });
-  title.value = task.title;
+  title.value = draft.title;
   const due = field("input", "edit-due", { type: "date", "aria-label": "Due date" });
-  due.value = task.due || "";
-  const repeat = select("edit-repeat", "Repeat", { none: "None", daily: "Daily", weekly: "Weekly", monthly: "Monthly" }, task.repeat);
-  const priority = select("edit-priority", "Priority", PRIORITY_LABELS, task.priority);
+  due.value = draft.due;
+  const repeat = select("edit-repeat", "Repeat", repeatOptions, draft.repeat);
+  const priority = select("edit-priority", "Priority", PRIORITY_LABELS, draft.priority);
   const tags = field("input", "edit-tags", { type: "text", maxlength: "200", placeholder: "work, urgent", "aria-label": "Tags, comma-separated" });
-  tags.value = (task.tags || []).join(", ");
+  tags.value = draft.tags;
   const error = field("p", "edit-error", { role: "alert" });
-  error.hidden = true;
+  error.textContent = draft.error;
+  error.hidden = !draft.error;
   const save = field("button", "edit-save", { type: "submit" });
   save.textContent = "Save";
   const cancel = field("button", "edit-cancel secondary", { type: "button" });
   cancel.textContent = "Cancel";
 
-  const close = () => { editingId = null; render(); };
+  // Keep the draft current as the user types or picks.
+  const sync = () => Object.assign(draft, { title: title.value, due: due.value, tags: tags.value,
+    repeat: repeat.value, priority: priority.value });
+  form.addEventListener("input", sync);
+  form.addEventListener("change", sync);
+  const showError = (message) => {
+    draft.error = message;
+    error.textContent = message;
+    error.hidden = false;
+  };
+
+  const close = () => { endEdit(); render(); };
   cancel.addEventListener("click", close);
   form.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); close(); } });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
+    if (savingEdit) return;
+    sync();
     if (!title.value.trim()) {
-      error.textContent = "The title can't be empty.";
-      error.hidden = false;
+      showError("The title can't be empty.");
       title.focus();
       return;
     }
+    savingEdit = true;
     try {
       await TodoDB.update(task.id, { title: title.value, due: due.value || null, tags: tags.value,
         repeat: repeat.value, priority: priority.value }, USER);
-      editingId = null;
+      endEdit();
       clearError();
       await render();
     } catch (err) {
-      error.textContent = `Couldn't save: ${err && err.message ? err.message : err}`;
-      error.hidden = false;
+      showError(`Couldn't save: ${err && err.message ? err.message : err}`);
+    } finally {
+      savingEdit = false;
     }
   });
 
@@ -169,7 +209,10 @@ function editItem(task) {
   actions.append(save, cancel);
   form.append(title, row, error, actions);
   li.append(form);
-  setTimeout(() => title.focus(), 0);
+  if (focusEdit) {
+    focusEdit = false;
+    setTimeout(() => title.focus(), 0);
+  }
   return li;
 }
 
@@ -200,7 +243,7 @@ function taskItem(task) {
   meta.className = "meta";
   const prio = document.createElement("span");
   prio.className = `priority ${task.priority}`;
-  prio.textContent = PRIORITY_LABELS[task.priority] || "Medium";
+  prio.textContent = PRIORITY_LABELS[task.priority]; // TodoDB.clean() guarantees high|medium|low
   meta.append(prio);
   const badge = dueBadge(task);
   if (badge) meta.append(badge);
@@ -254,7 +297,7 @@ function taskItem(task) {
     edit.className = "edit secondary";
     edit.textContent = "Edit";
     edit.setAttribute("aria-label", `Edit "${task.title}"`);
-    edit.addEventListener("click", () => { editingId = task.id; render(); }); // one edit at a time
+    edit.addEventListener("click", () => startEdit(task.id)); // one edit at a time
     const actions = document.createElement("div");
     actions.className = "task-actions";
     actions.append(edit, del);
@@ -268,8 +311,8 @@ function taskItem(task) {
 function compareTasks(a, b) {
   if (a.done !== b.done) return a.done - b.done;
   if (!a.done) {
-    const pa = PRIORITY_RANK[a.priority] ?? 1;
-    const pb = PRIORITY_RANK[b.priority] ?? 1;
+    const pa = PRIORITY_RANK[a.priority];
+    const pb = PRIORITY_RANK[b.priority];
     if (pa !== pb) return pa - pb;
     const ad = a.due || "9999-12-31";
     const bd = b.due || "9999-12-31";

@@ -1,7 +1,7 @@
 # Eval report: issue-15
 
-**Result: FAIL**. 25 passed, 0 not executed, 3 incomplete, 0 with unexpected failures, 0 unit, 2 skipped. 147 log entries read, 0 malformed, 0 unknown case tags.
-Generated 2026-10-26T12:03:58.840Z.
+**Result: PASS**. 28 passed, 0 not executed, 0 incomplete, 0 with unexpected failures, 0 unit, 2 skipped. 148 log entries read, 0 malformed, 0 unknown case tags.
+Generated 2026-10-26T12:06:42.178Z.
 
 | Case | Auto | Status | Missing actions / note |
 |------|------|--------|------------------------|
@@ -30,8 +30,8 @@ Generated 2026-10-26T12:03:58.840Z.
 | TC-23 | e2e | ✅ pass |  |
 | TC-24 | e2e | ➖ skipped | runs the issue-7 and issue-14 suites in their own browsers; they write their own eval reports |
 | TC-25 | e2e | ➖ skipped | a console check across the whole run, not an app action |
-| TC-26 | e2e | ❌ incomplete | missing: task.become_oneoff@user |
-| TC-27 | e2e | ❌ incomplete | missing: task.edit:error@user |
-| TC-28 | e2e | ❌ incomplete | missing: task.add:error@api, task.edit@user |
+| TC-26 | e2e | ✅ pass |  |
+| TC-27 | e2e | ✅ pass |  |
+| TC-28 | e2e | ✅ pass |  |
 | TC-29 | e2e | ✅ pass |  |
 | TC-30 | e2e | ✅ pass |  |
