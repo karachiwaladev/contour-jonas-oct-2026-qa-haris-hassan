@@ -1,0 +1,5 @@
+{"ts":"2026-10-26T11:54:28.836Z","sessionId":"24ccb5a3-14f2-4e2f-96a1-42b673eb9bb6","seq":1,"actor":"api","automated":true,"action":"test.case_start","taskId":null,"changes":{},"outcome":"ok","testCase":"TC-17","id":1}
+{"ts":"2026-10-26T11:54:28.839Z","sessionId":"24ccb5a3-14f2-4e2f-96a1-42b673eb9bb6","seq":2,"actor":"api","automated":true,"action":"test.case_start","taskId":null,"changes":{},"outcome":"ok","testCase":"TC-01","id":2}
+{"ts":"2026-10-26T11:54:28.841Z","sessionId":"24ccb5a3-14f2-4e2f-96a1-42b673eb9bb6","seq":3,"actor":"api","automated":true,"action":"task.delete","taskId":1,"changes":{},"outcome":"ok","testCase":"TC-01","id":3}
+{"ts":"2026-10-26T11:54:28.841Z","sessionId":"24ccb5a3-14f2-4e2f-96a1-42b673eb9bb6","seq":4,"actor":"api","automated":true,"action":"task.delete","taskId":2,"changes":{},"outcome":"ok","testCase":"TC-01","id":4}
+{"ts":"2026-10-26T11:54:28.844Z","sessionId":"24ccb5a3-14f2-4e2f-96a1-42b673eb9bb6","seq":5,"actor":"api","automated":true,"action":"test.case_start","taskId":null,"changes":{},"outcome":"ok","testCase":"TC-02","id":5}

@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. This builds on #16 (the action log), so each end-to-end case is tagged in the log and checked by the eval. **Expected log** uses the eval syntax `action[:error][@actor]`; `expected-log.json` holds the same expectations for the eval.
 
-**Status:** awaiting test-case review
+**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-26** (25 cases). Not executed yet.
 
 `T` means today.
 
