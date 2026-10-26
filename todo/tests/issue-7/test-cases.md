@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. Run all automated cases with `node todo/tests/issue-7/run.js`; see *How to run* below.
 
-**Status:** TC-01–TC-25 were executed on `8fa311f` (25/25 passed). TC-26–TC-29 were added after the code review of PR #11 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-30–TC-31 were added after the second code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (2 cases).
+**Status:** TC-01–TC-25 were executed on `8fa311f` (25/25 passed). TC-26–TC-29 were added after the code review of PR #11 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-30–TC-31 were added after the second code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (2 cases). TC-32–TC-35 were added after the third code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases).
 
 **Dates** are relative to the day the suite runs: `T` is today, `T+3` is three days from today. Fixed calendar dates appear only in the unit cases (month-end, leap year, year boundary).
 
@@ -39,6 +39,10 @@ Written from the approved plan **before** implementation. Run all automated case
 | TC-29 | Monthly anchor kept when due is invalid; numeric fields coerced (code review #4/#5) | Security | A stored monthly task with `due: "bad"`, `anchorDay: "x"`, `createdAt: "oops"`, plus a normal task | Load the page; tick the monthly task | No crash; the sort is stable (no NaN); the spawned copy has a numeric `anchorDay` equal to its own day of month, and a valid due date | e2e | ⏳ |
 | TC-30 | Only the open head of a series looks recurring (code review round 2 #1/#3) | Regression | Daily A due `T` | Tick A (creates B); delete B; untick A; also view completed occurrences | Reopened A shows no 🔁 badge and no Stop repeating; completed occurrences show no 🔁; ticking A creates nothing | e2e | ⏳ |
 | TC-31 | Far-past due dates catch up (code review round 2 #4) | Edge | — | `nextDue("1500-01-15","monthly",15,"2026-10-26")`; daily `"1900-01-01"`; weekly `"1900-01-01"`, all with today `2026-10-26` | Monthly gives `2026-11-15`; daily gives `2026-10-26`; weekly gives the first date on or after today on the same weekday, less than 7 days away; never in the past | unit | ⏳ |
+| TC-32 | One live series after nested undo (code review round 3 #1) | Regression | Daily A due `T` | A→B→C→D by ticking each; untick B; untick A | Exactly one open repeating head (one 🔁 badge: D) | e2e | ⏳ |
+| TC-33 | A reopened past occurrence becomes a one-off (code review round 3 #5) | Regression | Daily A due `T` | Tick A (creates B); tick B (creates C); untick A; tick A again | A reopens with `repeat: "none"` and no 🔁; re-ticking creates nothing (3 tasks total) | e2e | ⏳ |
+| TC-34 | Works after the database is upgraded or deleted elsewhere (code review round 3 #2) | Regression | The app is open with a task | Delete the database from the page (as another tab upgrading would), then add a task | The add succeeds and the list shows only the new task; no closed-connection error | e2e | ⏳ |
+| TC-35 | Storage errors are visible (code review round 3 #3) | Regression | The app is open | Make `TodoDB.add` fail, then submit "Keep me" | A visible `role=alert` message says the task could not be added, and the typed title is kept | e2e | ⏳ |
 
 ## How to run
 
