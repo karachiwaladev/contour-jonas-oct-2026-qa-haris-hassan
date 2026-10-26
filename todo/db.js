@@ -16,10 +16,11 @@ const TodoDB = (() => {
   const MAX_TITLE = 200;
 
   // One title rule for add and edit: trimmed, not empty, at most MAX_TITLE.
-  function checkTitle(title) {
+  // Edits check the length separately, and only if the title actually changes.
+  function checkTitle(title, { checkLength = true } = {}) {
     const t = typeof title === "string" ? title.trim() : "";
     if (!t) throw new Error("The title can't be empty.");
-    if (t.length > MAX_TITLE) throw new Error(`The title can be at most ${MAX_TITLE} characters.`);
+    if (checkLength && t.length > MAX_TITLE) throw new Error(`The title can be at most ${MAX_TITLE} characters.`);
     return t;
   }
   const R = Recurrence;
@@ -213,9 +214,7 @@ const TodoDB = (() => {
       return logged(meta, { action: "task.edit", taskId: id }, async (events) => {
         const want = {};
         if ("title" in fields) {
-          const title = typeof fields.title === "string" ? fields.title.trim() : "";
-          if (!title) throw new Error("The title can't be empty.");
-          want.title = title; // the length rule applies only if the title changes (legacy long titles stay editable)
+          want.title = checkTitle(fields.title, { checkLength: false }); // length checked below, only if it changes
         }
         if ("due" in fields) {
           if (fields.due === null || fields.due === "") want.due = null;
@@ -238,17 +237,20 @@ const TodoDB = (() => {
             const raw = e.target.result;
             if (!raw || raw.done === true) { problem = "This task was completed or deleted."; return; }
             const c = clean(raw);
-            const next = { ...c, ...want };
+            // Compare against the trimmed stored title, so stray spaces in old data
+            // don't count as a title change.
+            const base = { ...c, title: c.title.trim() };
+            const next = { ...base, ...want };
             if (next.repeat !== "none" && !next.due) next.due = R.today(); // a series needs a start date
             const changed = ["title", "due", "tags", "repeat", "priority"]
-              .filter((k) => JSON.stringify(next[k]) !== JSON.stringify(c[k]));
+              .filter((k) => JSON.stringify(next[k]) !== JSON.stringify(base[k]));
             if (!changed.length) return;
             if (changed.includes("title") && next.title.length > MAX_TITLE) {
               problem = `The title can be at most ${MAX_TITLE} characters.`;
               return;
             }
             if (changed.includes("due") || changed.includes("repeat")) next.anchorDay = R.dayOf(next.due);
-            store.put({ ...raw, title: next.title, due: next.due, tags: next.tags, repeat: next.repeat,
+            store.put({ ...raw, title: changed.includes("title") ? next.title : raw.title, due: next.due, tags: next.tags, repeat: next.repeat,
               priority: next.priority, anchorDay: next.anchorDay, edited: true });
             const log = { fields: changed };
             for (const k of ["due", "repeat", "priority"]) if (changed.includes(k)) log[k] = next[k];

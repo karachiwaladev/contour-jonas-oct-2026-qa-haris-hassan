@@ -103,7 +103,7 @@ function dueBadge(task) {
 // filter) redraws the form with what the user typed rather than the stored task.
 let editDraft = null;   // { id, title, due, tags, repeat, priority, error }
 let focusEdit = false;  // focus the title only when the form first opens
-let savingEdit = false; // one save at a time
+const savingIds = new Set(); // tasks whose edit is being saved (one save per task at a time)
 
 function startEdit(id) {
   editingId = id;
@@ -163,42 +163,62 @@ function editItem(task) {
   save.textContent = "Save";
   const cancel = field("button", "edit-cancel secondary", { type: "button" });
   cancel.textContent = "Cancel";
+  // A save can't be taken back once started, so Cancel is off until it ends.
+  cancel.disabled = savingIds.has(task.id);
 
   // Keep the draft current as the user types or picks.
   const sync = () => Object.assign(draft, { title: title.value, due: due.value, tags: tags.value,
     repeat: repeat.value, priority: priority.value });
   form.addEventListener("input", sync);
   form.addEventListener("change", sync);
-  const showError = (message) => {
+  const showFormError = (message) => {
     draft.error = message;
     error.textContent = message;
     error.hidden = false;
   };
 
-  const close = () => { endEdit(); render(); };
+  const close = () => {
+    if (savingIds.has(task.id)) return;
+    endEdit();
+    render();
+  };
   cancel.addEventListener("click", close);
   form.addEventListener("keydown", (e) => { if (e.key === "Escape") { e.preventDefault(); close(); } });
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (savingEdit) return;
+    if (savingIds.has(task.id)) return; // this task's save is already running
     sync();
     if (!title.value.trim()) {
-      showError("The title can't be empty.");
+      showFormError("The title can't be empty.");
       title.focus();
       return;
     }
-    savingEdit = true;
+    // A half-typed date reads as "" in the browser; don't let it clear the due date.
+    if (due.validity && due.validity.badInput) {
+      showFormError("Enter a complete date, or clear the field.");
+      due.focus();
+      return;
+    }
+    savingIds.add(task.id);
+    cancel.disabled = true;
     try {
       await TodoDB.update(task.id, { title: title.value, due: due.value || null, tags: tags.value,
         repeat: repeat.value, priority: priority.value }, USER);
-      endEdit();
+      if (editingId === task.id) endEdit(); // another task's form may be open by now
       clearError();
-      await render();
     } catch (err) {
-      showError(`Couldn't save: ${err && err.message ? err.message : err}`);
+      if (/completed or deleted/.test(err && err.message)) {
+        // Nothing left to edit: close the form and say why on the page.
+        if (editingId === task.id) endEdit();
+        showError("save the edit", err, "action");
+      } else {
+        showFormError(`Couldn't save: ${err && err.message ? err.message : err}`);
+      }
     } finally {
-      savingEdit = false;
+      savingIds.delete(task.id);
+      cancel.disabled = false;
     }
+    await render();
   });
 
   const row = document.createElement("div");
