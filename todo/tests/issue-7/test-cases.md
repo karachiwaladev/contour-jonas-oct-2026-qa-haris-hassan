@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. Run all automated cases with `node todo/tests/issue-7/run.js`; see *How to run* below.
 
-**Status:** TC-01–TC-25 were executed on `8fa311f` (25/25 passed). TC-26–TC-29 were added after the code review of PR #11 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-30–TC-31 were added after the second code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (2 cases). TC-32–TC-35 were added after the third code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases).
+**Status:** TC-01–TC-25 were executed on `8fa311f` (25/25 passed). TC-26–TC-29 were added after the code review of PR #11 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-30–TC-31 were added after the second code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (2 cases). TC-32–TC-35 were added after the third code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-36–TC-38 were added after the fourth code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (3 cases; numeric tags are kept as text).
 
 **Dates** are relative to the day the suite runs: `T` is today, `T+3` is three days from today. Fixed calendar dates appear only in the unit cases (month-end, leap year, year boundary).
 
@@ -43,6 +43,9 @@ Written from the approved plan **before** implementation. Run all automated case
 | TC-33 | A reopened past occurrence becomes a one-off (code review round 3 #5) | Regression | Daily A due `T` | Tick A (creates B); tick B (creates C); untick A; tick A again | A reopens with `repeat: "none"` and no 🔁; re-ticking creates nothing (3 tasks total) | e2e | ⏳ |
 | TC-34 | Works after the database is upgraded or deleted elsewhere (code review round 3 #2) | Regression | The app is open with a task | Delete the database from the page (as another tab upgrading would), then add a task | The add succeeds and the list shows only the new task; no closed-connection error | e2e | ⏳ |
 | TC-35 | Storage errors are visible (code review round 3 #3) | Regression | The app is open | Make `TodoDB.add` fail, then submit "Keep me" | A visible `role=alert` message says the task could not be added, and the typed title is kept | e2e | ⏳ |
+| TC-36 | Tampered tag values are dropped (code review round 4 #4) | Security | A stored task with tags `[null, {}, 5, "ok", true, ["x"]]` | Load the page | Only `#5` and `#ok` chips appear: numbers are kept as text; null, objects, booleans and arrays are dropped | e2e | ⏳ |
+| TC-37 | The error box clears once loading works again (code review round 4 #2) | Regression | Loading fails once and the error shows | Storage recovers; click the **Active** filter | The error box is hidden and the list loads | e2e | ⏳ |
+| TC-38 | An older redraw cannot overwrite a newer one (code review round 4 #3) | Regression | A task "Real" exists | Start a redraw whose read is slow and returns stale data, then a normal redraw | The list shows "Real" (the newest redraw wins), not the stale result | e2e | ⏳ |
 
 ## How to run
 

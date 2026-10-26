@@ -336,6 +336,28 @@ async function e2e() {
       r.visible && /add the task/i.test(r.text || "") && r.kept === "Keep me", JSON.stringify(r));
     await ev(`document.getElementById("task-title").value = ""; const el = document.querySelector("[role=alert]"); if (el) el.hidden = true;`);
 
+    r = await ev(`await T.reset(); await T.add("Real", "", "", "none"); const realAll = TodoDB.all;
+      TodoDB.all = () => Promise.reject(new Error("TC-37 injected failure")); await render();
+      const shown = !document.getElementById("error").hidden;
+      TodoDB.all = realAll; await T.status("active"); await T.status("all");
+      return { shown, hiddenAfter: document.getElementById("error").hidden, titles: T.titles() };`);
+    check("TC-37", "error box clears once loading works again",
+      r.shown && r.hiddenAfter && JSON.stringify(r.titles) === '["Real"]', JSON.stringify(r));
+
+    r = await ev(`const realAll = TodoDB.all; let n = 0;
+      TodoDB.all = async () => { n++; if (n === 1) { await T.wait(400);
+        return [{ id: 999, title: "Stale", done: false, createdAt: 1, due: null, tags: [], repeat: "none", anchorDay: null, nextId: null, spawnedFrom: null }]; }
+        return realAll(); };
+      const p1 = render(); const p2 = render(); await Promise.all([p1, p2]); TodoDB.all = realAll;
+      return T.titles();`);
+    check("TC-38", "an older redraw cannot overwrite a newer one", JSON.stringify(r) === '["Real"]', JSON.stringify(r));
+
+    await seed(3, [
+      { title: "Tags", done: false, createdAt: 1, due: null, tags: [null, {}, 5, "ok", true, ["x"]], repeat: "none", anchorDay: null }]);
+    await open();
+    r = await ev(`return [...document.querySelectorAll("#task-list .chip")].map(c => c.textContent);`);
+    check("TC-36", "tampered tag values dropped; numbers kept as text", JSON.stringify(r) === '["#5","#ok"]', JSON.stringify(r));
+
     await seed(3, [
       { title: "Bad monthly", done: false, createdAt: "oops", due: "bad", tags: [], repeat: "monthly", anchorDay: "x" },
       { title: "Normal", done: false, createdAt: 5, due: null, tags: [], repeat: "none", anchorDay: null }]);
@@ -357,8 +379,8 @@ async function e2e() {
   } catch (e) {
     check("E2E", "browser run", false, e.stack || e.message);
   } finally {
-    // TC-35 injects a storage failure on purpose; its logged error is expected.
-    const unexpected = consoleErrors.filter((m) => !m.includes("TC-35 injected failure"));
+    // TC-35 and TC-37 inject storage failures on purpose; their logged errors are expected.
+    const unexpected = consoleErrors.filter((m) => !/TC-3[57] injected failure/.test(m));
     check("TC-24", "no console errors or exceptions", unexpected.length === 0, unexpected.join(" | "));
     try { ws && ws.close(); } catch {}
     chrome.kill(); server.kill();
