@@ -1,6 +1,6 @@
 ---
 name: factory-loop
-description: Work through a GitHub repo's open issues like a factory line — read each ticket, react 👍, then act on it: answer questions, carry out repo tasks (create/edit files, scaffold folders, docs, config), or, for building a project or feature, clarify → plan → get approval → build → verify in Chrome via chrome-devtools → attach screenshots to the ticket. Every ticket that changes files gets its own branch when work starts and a pull request when it's done; the PR is merged into main, which closes the ticket. Then it keeps polling for new tickets. Never takes destructive actions. Use this whenever the user asks to process, answer, work through, build from, triage-and-close, or "loop over" GitHub issues/tickets in the current repo, or to keep watching the repo for new tickets, even if they don't say "factory-loop".
+description: Work through a GitHub repo's open issues like a factory line — read each ticket, react 👍, then act on it: answer questions, carry out repo tasks (create/edit files, scaffold folders, docs, config), or, for building a project or feature, clarify → plan → get approval → build → verify in Chrome via chrome-devtools → attach screenshots to the ticket. Every ticket that changes files gets its own branch when work starts and a pull request when it's done; the PR waits for manual review and approval, and only then is it merged into main and the ticket closed (changes requested are fixed on the same branch). Then it keeps polling for new tickets and for PR reviews. Never takes destructive actions. Use this whenever the user asks to process, answer, work through, build from, triage-and-close, or "loop over" GitHub issues/tickets in the current repo, or to keep watching the repo for new tickets, even if they don't say "factory-loop".
 ---
 
 # Factory loop
@@ -8,12 +8,12 @@ description: Work through a GitHub repo's open issues like a factory line — re
 Process open GitHub issues end to end, then keep checking for new ones. Every ticket is acted on, not just answered:
 
 - **Question:** read → 👍 → answer in a comment → close.
-- **Action task:** read → 👍 → **new branch** → do it (files, folders, docs, config) → commit and push → **PR** → merge → comment → closed.
-- **Build task:** read → 👍 → clarify → plan → **approval** → **new branch** → build → verify in the browser → screenshots → commit and push → **PR** → merge → comment → closed.
+- **Action task:** read → 👍 → **new branch** → do it (files, folders, docs, config) → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
+- **Build task:** read → 👍 → clarify → plan → **plan approval** → **new branch** → build → verify in the browser → screenshots → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
 
-Questions and action tasks run fully automatically. A build task stops twice for the user: once for clarifying questions and once to approve the plan. Building is the expensive part to redo, so it's worth checking assumptions first.
+Questions run fully automatically. Every ticket that changes files stops for a human before it lands: its PR waits for manual review, and nothing is merged or closed until that PR is approved. A build task also stops twice before building, once for clarifying questions and once to approve the plan, because building is the expensive part to redo.
 
-**One ticket, one branch, one PR.** Work never goes straight onto `main`. Each ticket's changes live on `ticket/<issue>-<slug>`, and the PR is the review record: what changed, how it was verified, and screenshots. The PR is merged into `main` straight away, because the README says only what is on `main` counts, and its `Closes #N` closes the ticket.
+**One ticket, one branch, one PR, one approval.** Work never goes straight onto `main`. Each ticket's changes live on `ticket/<issue>-<slug>`, and its PR is both the review request and the record: what changed, how it was verified, and screenshots. While the PR waits, the ticket stays open with the `factory:awaiting-review` label. Each pass checks those PRs (step 3) and merges, revises or keeps waiting. Note that the work is not on `main`, which is what counts for scoring, until a reviewer approves it.
 
 A project Stop hook (`.claude/hooks/auto-commit.sh`) also commits and pushes any leftover changes to the *current* branch every time Claude stops, so nothing is ever left only on this machine. That's why the loop always goes back to `main` once a ticket is done.
 
@@ -54,16 +54,37 @@ gh auth login --hostname github.com --git-protocol https --web --skip-ssh-key
 
 Read its output file for the one-time code (`XXXX-XXXX`). Tell the user to open https://github.com/login/device and enter the code. Wait for the background task to finish, then confirm with `gh auth status`. Never ask the user to paste a token into the chat.
 
-## 3. List open issues
+## 3. Check PRs awaiting review, then list open issues
+
+**First, follow up on PRs waiting for review.** For each open ticket labelled `factory:awaiting-review`, find its PR (`gh pr list --state all --head ticket/<issue>-<slug>`, or the PR linked in the ticket comment) and read it:
+
+```
+gh pr view <pr> --json number,state,reviewDecision,reviews,comments,mergeCommit,headRefName,url
+```
+
+Then act on what it shows. Read `references/review-flow.md` for the exact steps.
+
+| The PR shows | Do |
+|---|---|
+| **Approved**: `reviewDecision` is `APPROVED`, a human commented `/approve` on the PR, or the user approved it in this session | Merge, return to `main`, comment on the ticket, remove the label and close the ticket |
+| **Changes requested**: `reviewDecision` is `CHANGES_REQUESTED`, or there are review or PR comments asking for changes since the last push | Fix them on the same branch, re-verify, push, reply on the PR with what changed, and keep waiting |
+| **Merged by someone else** | Return to `main`, comment on the ticket, remove the label and close it if it's still open |
+| **Closed without merging** | Don't close the ticket. Remove the label and report "PR rejected, needs a human" |
+| **No review yet** | Do nothing; report it as "awaiting review" with the PR link |
+
+Never approve or `/approve` a PR yourself, and never merge without one of the approval signals above. GitHub won't let the PR's author approve their own PR in the UI. If the loop's `gh` account is the user's own, the user approves by commenting `/approve` on the PR or by telling you in the session.
+
+**Then list open issues:**
 
 ```
 gh issue list --state open --limit 50 --json number,title,labels,author,createdAt,url
 ```
 
-If none are open, say so briefly and go to step 6.
+If there's nothing to do, say so briefly and go to step 6.
 
-**Skip** a ticket if either of these is true:
+**Skip** a ticket in the new-work step if any of these is true:
 
+- It has the `factory:awaiting-review` label: the review follow-up above handles it.
 - It has the `factory:in-progress` label: a build task in this or an earlier session is waiting on the user.
 - It already has a comment from the authenticated user (`gh api user --jq .login`): it was already handled, or a human took it over.
 
@@ -96,8 +117,7 @@ Answer in a short Markdown comment:
 
 1. Start the ticket branch (see *Branch and PR*).
 2. Do the work. Meet every explicit constraint in the ticket, such as line limits, folder layout or file names, and check them afterwards (for example `wc -l`). Follow `CLAUDE.md`, including adding new project folders to its index.
-3. Commit, push, open the PR and merge it (see *Branch and PR*).
-4. Comment on the ticket with what changed, the PR link, the merge commit link, and how each requirement was met.
+3. Commit, push, open the PR and hand it over for review (see *Branch and PR*). Don't merge it and don't close the ticket.
 
 ### Build task
 
@@ -108,7 +128,7 @@ Read `references/build-flow.md` and follow it. In short:
 3. **Plan:** write a short plan covering scope, data changes, UI, files and the verification checklist. Get the user's approval with AskUserQuestion. If they ask for changes, revise and ask again; don't build without a yes.
 4. **Build:** start the ticket branch (only after approval), implement, and keep the project's `CLAUDE.md` up to date.
 5. **Verify** in Chrome with the chrome-devtools MCP tools: run every checklist item, check the console for errors, and take screenshots.
-6. **Ship:** commit the code and screenshots, push, open the PR with the screenshots embedded, merge it, comment on the ticket, and remove the label.
+6. **Hand over for review:** commit the code and screenshots, push, open the PR with the screenshots embedded, and swap the label to `factory:awaiting-review`. Merging and closing happen only after a manual approval (step 3).
 
 ### Branch and PR
 
@@ -139,20 +159,21 @@ The body contains:
 - How it was verified: the checklist with ✅ results.
 - For a build task, the screenshots.
 
+- A **How to approve** line: "Approve this PR in GitHub's review UI, or comment `/approve`. To ask for changes, request changes or comment what to fix."
+
 End the body with the 🤖 Claude Code line.
 
-**Merge it straight away**, keeping the branch as history:
+**Hand it over for review. Don't merge it.**
 
 ```
-gh pr merge <pr> --merge
-git checkout main && git pull --ff-only
-gh pr view <pr> --json state,mergeCommit
+gh label create "factory:awaiting-review" --color 0E8A16 --description "PR open, waiting for manual review" 2>/dev/null
+gh issue edit <issue> --add-label "factory:awaiting-review" --remove-label "factory:in-progress"
+git checkout main
 ```
 
-- Use a merge commit, not squash or rebase, so commit-pinned screenshot links keep working.
-- If the merge is blocked, for example by a conflict or branch protection, don't force it. Leave the PR open, comment the PR link on the ticket, keep the ticket open, and report "needs a human".
+Then comment on the ticket: "PR #<pr> is ready for review: <url>", with a one-line summary. The ticket stays **open**.
 
-Always finish on `main`, because the Stop hook commits to whatever branch is checked out. Links you'll need: the PR URL, and the merge commit at `https://github.com/{owner}/{repo}/commit/<sha>`.
+Always finish on `main`, because the Stop hook commits to whatever branch is checked out. Merging happens later, once the PR is approved; see `references/review-flow.md`.
 
 ### Posting comments
 
@@ -160,7 +181,7 @@ Write the body to a file in the scratchpad and post it with `gh issue comment <n
 
 ### Close
 
-Close the ticket and verify that it closed. For action and build tasks, merging the PR with `Closes #N` usually closes it already. Close it explicitly only if it's still open:
+Close **questions** right after answering. Close action and build tasks **only after their PR has been approved and merged** (step 3). The PR's `Closes #N` usually closes the ticket at that point; close it explicitly only if it's still open. Either way, verify the result:
 
 ```
 gh issue close <n> --reason completed
@@ -172,6 +193,7 @@ gh issue view <n> --json state,stateReason
 After each pass, post one short summary with:
 
 - Each issue handled, with a link, one line on what was done, and its PR link if it has one.
+- PRs waiting for review, with links. Say which were approved and merged, revised after review, or still waiting.
 - Anything skipped, waiting for the user, or left as "needs a human", and why.
 - `No open issues` if there was nothing to do.
 

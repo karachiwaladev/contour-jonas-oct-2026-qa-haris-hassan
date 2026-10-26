@@ -1,0 +1,5 @@
+# Keep LF line endings for files Claude Code parses (skill frontmatter,
+# hooks, settings). A CRLF checkout breaks the skill's YAML header.
+.claude/** text eol=lf
+*.sh text eol=lf
+*.png binary

@@ -66,7 +66,7 @@ If any check fails, fix it and re-verify. Don't ship a failing checklist.
 
 Say in the ticket comment that the fallback was used.
 
-## 6. Ship
+## 6. Open the PR for manual review
 
 1. Commit the code and `screenshots/issue-<n>/` together on the ticket branch, then run `git push -u origin <branch>`.
 2. Open the PR into `main` (see *Branch and PR* in SKILL.md). The body has:
@@ -75,7 +75,7 @@ Say in the ticket comment that the fallback was used.
    - The verification checklist with ✅ results.
    - The screenshots, embedded with a URL pinned to the branch commit that renders for a private repo. The commit stays reachable after a merge commit:
      `![Initial view](https://github.com/{owner}/{repo}/blob/<sha>/<project>/screenshots/issue-<n>/01-initial.png?raw=true)`
-3. Merge with `gh pr merge <pr> --merge`, keeping the branch. Then run `git checkout main && git pull --ff-only`.
-4. Comment on the ticket with a short summary, the PR link, the merge commit link and the screenshots (the same embeds), so the ticket stands on its own.
-5. Remove the label: `gh issue edit <n> --remove-label "factory:in-progress"`.
-6. Check that the ticket is closed; the PR's `Closes #<n>` should have done it. Close it as completed if not.
+   - The **How to approve** line.
+3. Swap the label: `gh issue edit <n> --add-label "factory:awaiting-review" --remove-label "factory:in-progress"`.
+4. Comment on the ticket with "PR #<pr> is ready for review", the link, and a one-line summary.
+5. Run `git checkout main`. **Stop here.** Don't merge or close anything. Approval, merging and closing follow `review-flow.md`, on a later pass or when the user approves in the session.
