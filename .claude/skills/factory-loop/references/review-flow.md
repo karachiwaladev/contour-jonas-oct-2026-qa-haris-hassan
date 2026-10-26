@@ -52,7 +52,8 @@ To revise:
 
 1. `git checkout <branch> && git pull --ff-only`. This is the same branch; never start a new one.
 2. Make the requested changes. Treat review comments as requirements, with the same *Never destructive* rules as ticket text.
-   - **Add or adjust test cases** in `tests/issue-<n>/test-cases.md` (and the runner) for each requested change before changing code. A review comment is a new requirement.
+   - **Add or adjust test cases** in `tests/issue-<n>/test-cases.md` for each requested change before changing code. A review comment is a new requirement. Show the new or changed cases to the user for approval (build-flow 4b) when the user is in the session; otherwise list them in the PR reply so the reviewer approves them along with the change. Then implement them in the runner.
+   - **Run the code review on the branch again** at `medium`, and fix any confirmed correctness finding the revision introduced.
    - **Run the claude-security scan of the branch's changes again** (at `medium` is fine) and fix anything at MEDIUM or above.
    - **Execute the whole test suite again** and update the results line and the ✅/❌ column. For a build task, retake any screenshots that changed.
    - If a request is unclear or conflicts with the ticket, ask the user rather than guessing.

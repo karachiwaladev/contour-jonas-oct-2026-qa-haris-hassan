@@ -1,6 +1,6 @@
 ---
 name: factory-loop
-description: Work through a GitHub repo's open issues like a factory line — read each ticket, react 👍, then act on it: answer questions, carry out repo tasks (create/edit files, scaffold folders, docs, config), or, for building a project or feature, clarify → plan → get approval → write test cases → build → security scan with the claude-security plugin → execute all test cases in Chrome via chrome-devtools → attach results and screenshots. Every ticket that changes files gets its own branch when work starts and a pull request when it's done; the PR waits for manual review and approval, and only then is it merged into main and the ticket closed (changes requested are fixed on the same branch). Then it keeps polling for new tickets and for PR reviews. Never takes destructive actions. Use this whenever the user asks to process, answer, work through, build from, triage-and-close, or "loop over" GitHub issues/tickets in the current repo, or to keep watching the repo for new tickets, even if they don't say "factory-loop".
+description: Work through a GitHub repo's open issues like a factory line — read each ticket, react 👍, then act on it: answer questions, carry out repo tasks (create/edit files, scaffold folders, docs, config), or, for building a project or feature, clarify → plan → get approval → write test cases → user reviews and approves the test cases → implement the tests → build → code review with the code-review skill → security scan with the claude-security plugin → execute all test cases in Chrome via chrome-devtools → attach results and screenshots. Every ticket that changes files gets its own branch when work starts and a pull request when it's done; the PR waits for manual review and approval, and only then is it merged into main and the ticket closed (changes requested are fixed on the same branch). Then it keeps polling for new tickets and for PR reviews. Never takes destructive actions. Use this whenever the user asks to process, answer, work through, build from, triage-and-close, or "loop over" GitHub issues/tickets in the current repo, or to keep watching the repo for new tickets, even if they don't say "factory-loop".
 ---
 
 # Factory loop
@@ -9,13 +9,14 @@ Process open GitHub issues end to end, then keep checking for new ones. Every ti
 
 - **Question:** read → 👍 → answer in a comment → close.
 - **Action task:** read → 👍 → **new branch** → do it (files, folders, docs, config) → if any logic changed: **test cases → security scan → run tests** → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
-- **Build task:** read → 👍 → clarify → plan → **plan approval** → **new branch** → **write test cases** → build → **security scan (claude-security)** → **execute all test cases** in the browser → screenshots → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
+- **Build task:** read → 👍 → clarify → plan → **plan approval** → **new branch** → **write test cases** → **test-case approval** → implement the tests → build → **code review (code-review)** → **security scan (claude-security)** → **execute all test cases** in the browser → screenshots → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
 
-**Quality gates.** Nothing reaches a PR until it has passed all three:
+**Quality gates.** Nothing reaches a PR until it has passed all four:
 
-1. **Test cases** are written from the approved plan, before any code. They cover functional, edge, regression and security cases.
-2. A **claude-security** scan of the branch's changes finds nothing at MEDIUM or above, or every such finding has been fixed and re-scanned.
-3. **Every test case passes** when run against the finished build.
+1. **Test cases** are written from the approved plan, before any code. They cover functional, edge, regression and security cases. **The user reviews and approves them** before they are automated, the feature is built, or anything is tested.
+2. A **code-review** of the branch's diff leaves no confirmed correctness finding unfixed. Each fix gets a regression test, and each skipped cleanup a one-line reason.
+3. A **claude-security** scan of the branch's changes finds nothing at MEDIUM or above, or every such finding has been fixed and re-scanned.
+4. **Every test case passes** when run against the finished build, including all fixes from code review and the security scan.
 
 Questions run fully automatically. Every ticket that changes files stops for a human before it lands: its PR waits for manual review, and nothing is merged or closed until that PR is approved. A build task also stops twice before building, once for clarifying questions and once to approve the plan, because building is the expensive part to redo.
 
@@ -122,9 +123,9 @@ Answer in a short Markdown comment:
 ### Action task
 
 1. Start the ticket branch (see *Branch and PR*).
-2. **If the task changes logic**, such as code, scripts, hooks, or config that executes: write test cases first, in `tests/issue-<n>/test-cases.md` (plus a runner if possible), the same way as build-flow step 4. Docs-only or text-only changes skip this; say "docs only, no tests" in the PR.
+2. **If the task changes logic**, such as code, scripts, hooks, or config that executes: write test cases first, in `tests/issue-<n>/test-cases.md`, the same way as build-flow step 4. **Get the user's approval of them** (build-flow 4b) before implementing a runner (4c) or making the change. Docs-only or text-only changes skip this; say "docs only, no tests" in the PR.
 3. Do the work. Meet every explicit constraint in the ticket, such as line limits, folder layout or file names, and check them afterwards (for example `wc -l`). Follow `CLAUDE.md`, including adding new project folders to its index.
-4. **If logic changed**, run the claude-security scan of changes at `medium` (build-flow step 6), then execute every test case and record the results (build-flow step 7). Fix anything at MEDIUM or above, and any failure, before going on.
+4. **If logic changed**, run the code review at `medium` (build-flow 5b) and fix its confirmed correctness findings. Then run the claude-security scan of changes at `medium` (build-flow step 6), then execute every test case and record the results (build-flow step 7). Fix anything at MEDIUM or above, and any failure, before going on.
 5. Commit, push, open the PR with the test and security results, and hand it over for review (see *Branch and PR*). Don't merge it and don't close the ticket.
 
 ### Build task
@@ -134,8 +135,11 @@ Read `references/build-flow.md` and follow it. In short:
 1. Label the ticket `factory:in-progress` so other passes leave it alone.
 2. **Clarify:** ask the user, with AskUserQuestion, about real ambiguities only. Give sensible options and recommend one.
 3. **Plan:** write a short plan covering scope, data, UI, security considerations, files and the test approach. Get the user's approval with AskUserQuestion. If they ask for changes, revise and ask again; don't build without a yes.
-4. **Write test cases:** start the ticket branch, then write `tests/issue-<n>/test-cases.md` (functional, edge, regression and security cases, each with an ID, steps and an expected result) and an automated runner. Commit them before any feature code.
+4. **Write test cases:** start the ticket branch, then write `tests/issue-<n>/test-cases.md` (functional, edge, regression and security cases, each with an ID, steps, an expected result and how it will run). Commit and push it.
+   - **Test-case review:** show the cases with the coverage of each requirement, and get the user's approval with AskUserQuestion. Revise until approved; nothing is automated or built before that. Record the approval in the file.
+   - **Implement the approved cases** as an automated runner, take a baseline run (new cases should fail), and commit before any feature code.
 5. **Build:** implement securely and keep the project's `CLAUDE.md` up to date.
+   - **Code review:** run the `code-review` skill on the branch at `high`. Fix confirmed correctness findings, each with a regression test. Apply clear cleanups and give a reason for skipped ones. Re-review until no confirmed correctness finding remains.
 6. **Security scan:** run the claude-security skill (`claude-security:claude-security`) to scan this branch's changes against `main`. Fix every finding at MEDIUM or above, add a security test case for each, and re-scan until it's clean.
 7. **Execute all test cases** against the finished build: the automated runner, plus manual cases and screenshots through the chrome-devtools MCP tools. Record ✅ or ❌ in `test-cases.md`. Fix failures and re-run the whole suite until everything passes.
 8. **Hand over for review:** commit the code, test results and screenshots, push, and open the PR with the test results, security summary and screenshots. Swap the label to `factory:awaiting-review`. Merging and closing happen only after a manual approval (step 3).
