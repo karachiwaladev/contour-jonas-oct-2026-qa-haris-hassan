@@ -4,6 +4,7 @@ const form = document.getElementById("new-task");
 const input = document.getElementById("task-title");
 const dueInput = document.getElementById("task-due");
 const tagsInput = document.getElementById("task-tags");
+const repeatInput = document.getElementById("task-repeat");
 const list = document.getElementById("task-list");
 const empty = document.getElementById("empty");
 const count = document.getElementById("count");
@@ -14,10 +15,35 @@ const tagFilter = document.getElementById("tag-filter");
 const filters = { status: "all", tag: "" };
 
 // Local calendar date as "YYYY-MM-DD", comparable with stored due dates.
-function today() {
-  const d = new Date();
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const today = Recurrence.today;
+
+const errorBox = document.getElementById("error");
+
+// Tell the user (role=alert) and log the details. `source` is "action" or
+// "load", so a successful load clears only a load error, not an action's.
+function showError(what, err, source) {
+  const message = `Couldn't ${what}. ${err && err.message ? err.message : ""}`.trim();
+  console.error(message, err);
+  errorBox.textContent = message;
+  errorBox.dataset.source = source;
+  errorBox.hidden = false;
+}
+
+function clearError(source) {
+  if (!source || errorBox.dataset.source === source) errorBox.hidden = true;
+}
+
+// Run a storage action from a click, then redraw from what is actually stored.
+// A failure is shown on the page (e.g. "close other tabs" during an upgrade),
+// so the UI never stays stuck on a stale state without explanation.
+async function act(what, fn) {
+  try {
+    await fn();
+    clearError();
+  } catch (err) {
+    showError(what, err, "action");
+  }
+  await render();
 }
 
 function formatDue(due) {
@@ -29,7 +55,7 @@ function formatDue(due) {
 }
 
 function dueBadge(task) {
-  if (!task.due) return null;
+  if (!Recurrence.isValidDate(task.due)) return null;
   const badge = document.createElement("span");
   badge.className = "due";
   const t = today();
@@ -55,10 +81,9 @@ function taskItem(task) {
   checkbox.type = "checkbox";
   checkbox.checked = task.done;
   checkbox.setAttribute("aria-label", `Mark "${task.title}" as done`);
-  checkbox.addEventListener("change", async () => {
-    await TodoDB.setDone(task.id, checkbox.checked);
-    render();
-  });
+  checkbox.addEventListener("change", () =>
+    act("update the task", () => TodoDB.setDone(task.id, checkbox.checked))
+  );
 
   const body = document.createElement("div");
   body.className = "body";
@@ -71,6 +96,24 @@ function taskItem(task) {
   meta.className = "meta";
   const badge = dueBadge(task);
   if (badge) meta.append(badge);
+  // Only the open head of a series repeats: a completed occurrence, or a
+  // reopened one whose next copy already exists or was ended, shows no 🔁.
+  const repeatLabel = Recurrence.LABELS[task.repeat]; // undefined unless an allowlisted repeat
+  if (repeatLabel && !task.done && task.nextId == null) {
+    const rep = document.createElement("span");
+    rep.className = "repeat";
+    rep.textContent = `🔁 ${repeatLabel}`;
+    const stop = document.createElement("button");
+    stop.type = "button";
+    stop.className = "stop-repeat";
+    stop.textContent = "Stop repeating";
+    stop.setAttribute("aria-label", `Stop repeating "${task.title}"`);
+    stop.addEventListener("click", (e) => {
+      e.preventDefault(); // don't toggle the checkbox through the label
+      act("stop repeating", () => TodoDB.stopRepeating(task.id));
+    });
+    meta.append(rep, stop);
+  }
   for (const tag of task.tags || []) {
     const chip = document.createElement("button");
     chip.type = "button";
@@ -91,10 +134,7 @@ function taskItem(task) {
   del.className = "delete";
   del.textContent = "Delete";
   del.setAttribute("aria-label", `Delete "${task.title}"`);
-  del.addEventListener("click", async () => {
-    await TodoDB.remove(task.id);
-    render();
-  });
+  del.addEventListener("click", () => act("delete the task", () => TodoDB.remove(task.id)));
 
   label.append(checkbox, body);
   li.append(label, del);
@@ -133,8 +173,21 @@ function matches(task) {
   return true;
 }
 
+// Each render reads asynchronously; only the newest one may draw, so a slow,
+// older read can never overwrite a newer list.
+let renderSeq = 0;
+
 async function render() {
-  const tasks = await TodoDB.all();
+  const seq = ++renderSeq;
+  let tasks;
+  try {
+    tasks = await TodoDB.all();
+  } catch (err) {
+    if (seq === renderSeq) showError("load your tasks", err, "load");
+    return;
+  }
+  if (seq !== renderSeq) return;
+  clearError("load");
   renderTagOptions(tasks);
   for (const b of statusButtons) b.setAttribute("aria-pressed", String(b.dataset.status === filters.status));
 
@@ -151,14 +204,15 @@ async function render() {
     : "";
 }
 
-form.addEventListener("submit", async (e) => {
+form.addEventListener("submit", (e) => {
   e.preventDefault();
   const title = input.value.trim();
   if (!title) return;
-  await TodoDB.add(title, { due: dueInput.value || null, tags: tagsInput.value });
-  form.reset();
-  input.focus();
-  render();
+  act("add the task", async () => {
+    await TodoDB.add(title, { due: dueInput.value || null, tags: tagsInput.value, repeat: repeatInput.value });
+    form.reset(); // only on success, so a failed add keeps what was typed
+    input.focus();
+  });
 });
 
 for (const b of statusButtons) {
