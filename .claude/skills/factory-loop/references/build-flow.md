@@ -35,7 +35,7 @@ Then call AskUserQuestion with these options: "Approve and build", "Change somet
 
 ## 4. Build
 
-- Run `git pull --ff-only` first.
+- Start the ticket branch only now, after approval: `ticket/<issue>-<slug>` from an up-to-date `main` (see *Branch and PR* in SKILL.md). Every file change for this ticket goes on that branch.
 - Follow the project's existing structure, style and `CLAUDE.md` conventions.
 - Render user input with `textContent`, never `innerHTML`.
 - Update the project's `CLAUDE.md`, including its manual test checklist, and the root `CLAUDE.md` index if anything there changes.
@@ -68,12 +68,14 @@ Say in the ticket comment that the fallback was used.
 
 ## 6. Ship
 
-1. Commit the code and `screenshots/issue-<n>/` together (see *Committing* in SKILL.md), then push.
-2. Comment on the ticket:
-   - A summary, and the commit link.
+1. Commit the code and `screenshots/issue-<n>/` together on the ticket branch, then run `git push -u origin <branch>`.
+2. Open the PR into `main` (see *Branch and PR* in SKILL.md). The body has:
+   - `Closes #<n>`, and a summary.
    - Requirement → how it was met.
    - The verification checklist with ✅ results.
-   - The screenshots, embedded with a commit-pinned URL that renders for a private repo:
+   - The screenshots, embedded with a URL pinned to the branch commit that renders for a private repo. The commit stays reachable after a merge commit:
      `![Initial view](https://github.com/{owner}/{repo}/blob/<sha>/<project>/screenshots/issue-<n>/01-initial.png?raw=true)`
-3. Remove the label: `gh issue edit <n> --remove-label "factory:in-progress"`.
-4. Close the ticket as completed and verify that it closed.
+3. Merge with `gh pr merge <pr> --merge`, keeping the branch. Then run `git checkout main && git pull --ff-only`.
+4. Comment on the ticket with a short summary, the PR link, the merge commit link and the screenshots (the same embeds), so the ticket stands on its own.
+5. Remove the label: `gh issue edit <n> --remove-label "factory:in-progress"`.
+6. Check that the ticket is closed; the PR's `Closes #<n>` should have done it. Close it as completed if not.
