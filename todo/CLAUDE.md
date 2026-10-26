@@ -39,7 +39,7 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 
 ## Tests
 
-`node todo/tests/issue-7/run.js` runs the recurring-task suite (TC-01–TC-35): unit tests in Node, then end-to-end tests in headless Chrome. It needs Node 18+, Python 3 and Chrome; set `CHROME_PATH` if Chrome isn't in the default location. Set `SCREENSHOTS=<dir>` to save screenshots.
+`node todo/tests/issue-7/run.js` runs the recurring-task suite (TC-01–TC-41): unit tests in Node, then end-to-end tests in headless Chrome. It needs Node 18+, Python 3 and Chrome; set `CHROME_PATH` if Chrome isn't in the default location. Set `SCREENSHOTS=<dir>` to save screenshots.
 
 ## Manual test checklist
 

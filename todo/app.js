@@ -36,14 +36,18 @@ function clearError(source) {
 // Run a storage action from a click, then redraw from what is actually stored.
 // A failure is shown on the page (e.g. "close other tabs" during an upgrade),
 // so the UI never stays stuck on a stale state without explanation.
+// Resolves true if the action succeeded.
 async function act(what, fn) {
+  let ok = true;
   try {
     await fn();
     clearError();
   } catch (err) {
+    ok = false;
     showError(what, err, "action");
   }
   await render();
+  return ok;
 }
 
 function formatDue(due) {
@@ -204,15 +208,29 @@ async function render() {
     : "";
 }
 
-form.addEventListener("submit", (e) => {
+// One add at a time: a fast double submit can't add the task twice. The form
+// is cleared at once, so anything typed while the save runs is kept; if the
+// save fails, what was submitted comes back (unless the user already typed more).
+let adding = false;
+
+form.addEventListener("submit", async (e) => {
   e.preventDefault();
   const title = input.value.trim();
-  if (!title) return;
-  act("add the task", async () => {
-    await TodoDB.add(title, { due: dueInput.value || null, tags: tagsInput.value, repeat: repeatInput.value });
-    form.reset(); // only on success, so a failed add keeps what was typed
-    input.focus();
-  });
+  if (adding || !title) return;
+  const submitted = { title: input.value, due: dueInput.value, tags: tagsInput.value, repeat: repeatInput.value };
+  adding = true;
+  form.reset();
+  input.focus();
+  const ok = await act("add the task", () =>
+    TodoDB.add(title, { due: submitted.due || null, tags: submitted.tags, repeat: submitted.repeat })
+  );
+  adding = false;
+  if (!ok && !input.value) {
+    input.value = submitted.title;
+    dueInput.value = submitted.due;
+    tagsInput.value = submitted.tags;
+    repeatInput.value = submitted.repeat;
+  }
 });
 
 for (const b of statusButtons) {
