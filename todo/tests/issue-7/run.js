@@ -7,7 +7,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { startBrowser } = require("../lib/harness");
+const { startBrowser, runEval: runEvalShared } = require("../lib/harness");
 
 const TODO_DIR = path.resolve(__dirname, "..", "..");
 const results = [];
@@ -420,21 +420,7 @@ async function e2e() {
 // Eval (ticket #14): check the collected app log against test-cases.md and
 // expected-log.json, so the run proves every e2e case ran and did what it should.
 function runEval() {
-  try {
-    const E = require(path.join(TODO_DIR, "tests", "eval", "eval-logs.js"));
-    const outDir = path.join(__dirname, "eval");
-    fs.mkdirSync(outDir, { recursive: true });
-    const logText = [...collected.values()].sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.seq - b.seq)).map((e) => JSON.stringify(e)).join("\n");
-    fs.writeFileSync(path.join(outDir, "run-log.jsonl"), logText + (logText ? "\n" : ""));
-    const res = E.evaluate({ logText, specText: fs.readFileSync(path.join(__dirname, "test-cases.md"), "utf8"),
-      expected: JSON.parse(fs.readFileSync(path.join(__dirname, "expected-log.json"), "utf8")) });
-    E.writeReports(res, outDir, { suite: "issue-7" });
-    check("EVAL", "eval of this run: every e2e case executed with its expected actions", res.ok,
-      res.cases.filter((c) => !["pass", "unit", "skipped"].includes(c.status))
-        .map((c) => `${c.id}:${c.status}${c.missing && c.missing.length ? "(" + c.missing.join(",") + ")" : ""}`).join(" "));
-  } catch (e) {
-    check("EVAL", "eval of this run", false, e.message);
-  }
+  runEvalShared({ collected, suiteDir: __dirname, suite: "issue-7", check });
 }
 
 (async () => {

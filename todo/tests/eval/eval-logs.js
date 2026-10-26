@@ -9,8 +9,10 @@
 // - spec: the test-case table (needs "ID" and "Auto" columns). Cases with Auto
 //   "unit" do nothing in the app, so they are listed as "unit", not judged.
 // - expected: { "TC-03": ["task.add", ...] }   every action must appear (with
-//   outcome ok) among the entries tagged TC-03; "task.add:error" matches a
-//   failed task.add instead; []  = it only has to have run;
+//   outcome ok) among the entries tagged TC-03. Syntax: action[:error][@actor],
+//   e.g. "task.add:error" matches a failed task.add, "task.add@user" one done
+//   through the page. A failed action the case doesn't expect makes it fail
+//   ("unexpected-error"). []  = it only has to have run;
 //   { "skip": reason }  = can't be judged from the log;
 //   { "sameRunAs": "TC-08", "actions": [...] } = checked within another case's entries.
 // - log: one JSON object per line; lines that aren't JSON objects with an
@@ -63,18 +65,31 @@ function evaluate({ logText, specText, expected = {} }) {
   // so it never satisfies an expectation of the plain action (a failed add is
   // not an add); a case that is meant to fail expects "<action>:error".
   // Any tagged entry, failed or not, shows the case ran.
+  // Each entry is recorded both as "<action>[:error]" and "<action>[:error]@<actor>",
+  // so an expectation may name who did it (e.g. "task.add@user").
   const byCase = new Map();
   for (const e of entries) {
     if (typeof e.testCase !== "string") continue;
     if (!byCase.has(e.testCase)) byCase.set(e.testCase, new Set());
-    byCase.get(e.testCase).add(e.outcome === "error" ? `${e.action}:error` : e.action);
+    const seen = byCase.get(e.testCase);
+    const key = e.outcome === "error" ? `${e.action}:error` : e.action;
+    seen.add(key);
+    if (typeof e.actor === "string") seen.add(`${key}@${e.actor}`);
   }
 
-  const judge = (id, need) => {
+  // A case passes when every expected action was seen and it had no failed
+  // action it didn't expect. `ownsErrors` is false for a sameRunAs case, whose
+  // run's failures belong to the case it shares the run with.
+  const judge = (id, need, ownsErrors = true) => {
     const seen = byCase.get(id);
     if (!seen) return { status: "not-executed", missing: need };
     const missing = need.filter((a) => !seen.has(a));
-    return { status: missing.length ? "incomplete" : "pass", missing, actions: [...seen].sort() };
+    const allowed = new Set(need.map((a) => a.split("@")[0]));
+    const unexpected = ownsErrors
+      ? [...seen].filter((k) => !k.includes("@") && k.endsWith(":error") && !allowed.has(k)).sort()
+      : [];
+    const status = missing.length ? "incomplete" : unexpected.length ? "unexpected-error" : "pass";
+    return { status, missing, unexpected, actions: [...seen].filter((k) => !k.includes("@")).sort() };
   };
 
   const cases = spec.map(({ id, auto }) => {
@@ -84,7 +99,7 @@ function evaluate({ logText, specText, expected = {} }) {
       if (typeof exp.skip === "string") return { id, auto, status: "skipped", note: exp.skip };
       if (typeof exp.sameRunAs === "string") {
         const need = Array.isArray(exp.actions) ? exp.actions.map(String) : [];
-        return { id, auto, ...judge(exp.sameRunAs, need), note: `checked within ${exp.sameRunAs}` };
+        return { id, auto, ...judge(exp.sameRunAs, need, false), note: `checked within ${exp.sameRunAs}` };
       }
     }
     const need = Array.isArray(exp) ? exp.map(String) : [];
@@ -96,26 +111,31 @@ function evaluate({ logText, specText, expected = {} }) {
   const count = (s) => cases.filter((c) => c.status === s).length;
   const summary = {
     cases: cases.length, pass: count("pass"), unit: count("unit"), skipped: count("skipped"),
-    notExecuted: count("not-executed"), incomplete: count("incomplete"),
+    notExecuted: count("not-executed"), incomplete: count("incomplete"), unexpectedError: count("unexpected-error"),
     entries: entries.length, malformed: malformed.length, unknown: unknown.length,
   };
   return { ok: cases.every((c) => OK_STATUSES.has(c.status)), summary, cases, malformed, unknown };
 }
 
 function renderMarkdown(result, meta = {}) {
-  const icon = { pass: "✅", unit: "➖", skipped: "➖", "not-executed": "❌", incomplete: "❌" };
+  const icon = { pass: "✅", unit: "➖", skipped: "➖", "not-executed": "❌", incomplete: "❌", "unexpected-error": "❌" };
   const s = result.summary;
+  const detail = (c) => {
+    if (c.missing && c.missing.length) return "missing: " + c.missing.join(", ");
+    if (c.unexpected && c.unexpected.length) return "unexpected failures: " + c.unexpected.join(", ");
+    return c.note || "";
+  };
   const lines = [
     `# Eval report${meta.suite ? `: ${meta.suite}` : ""}`,
     "",
     `**Result: ${result.ok ? "PASS" : "FAIL"}**. ${s.pass} passed, ${s.notExecuted} not executed, ${s.incomplete} incomplete, ` +
-      `${s.unit} unit, ${s.skipped} skipped. ${s.entries} log entries read, ${s.malformed} malformed, ${s.unknown} unknown case tags.`,
+      `${s.unexpectedError} with unexpected failures, ${s.unit} unit, ${s.skipped} skipped. ` +
+      `${s.entries} log entries read, ${s.malformed} malformed, ${s.unknown} unknown case tags.`,
     meta.generatedAt ? `Generated ${meta.generatedAt}.` : "",
     "",
     "| Case | Auto | Status | Missing actions / note |",
     "|------|------|--------|------------------------|",
-    ...result.cases.map((c) => `| ${c.id} | ${c.auto} | ${icon[c.status] || ""} ${c.status} | ${
-      c.missing && c.missing.length ? "missing: " + c.missing.join(", ") : (c.note || "")} |`),
+    ...result.cases.map((c) => `| ${c.id} | ${c.auto} | ${icon[c.status] || ""} ${c.status} | ${detail(c)} |`),
   ];
   if (result.malformed.length) lines.push("", "**Malformed log lines:** " + result.malformed.map((m) => `line ${m.line} (${m.reason})`).join("; "));
   if (result.unknown.length) lines.push("", "**Unknown case tags in the log:** " + result.unknown.join(", "));

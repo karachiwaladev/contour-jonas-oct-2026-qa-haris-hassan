@@ -11,9 +11,9 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 | File | Purpose |
 |------|---------|
 | `index.html` | Page markup; loads `recurrence.js`, `logger.js`, `db.js` and then `app.js` as classic scripts, so it works from `file://` |
-| `logger.js` | `TodoLog`: the action log in its own IndexedDB database `todo-logs` (`log`, `all`, `recent`, `count`, `exportJSONL`, `clear`, `setTestCase`, `flush`). It keeps the last 1,000 entries and is best-effort, so it never breaks the app. |
+| `logger.js` | `TodoLog`: the action log in its own IndexedDB database `todo-logs` (`log`, `all`, `recent`, `count`, `exportJSONL`, `clear`, `setTestCase`, `flush`, `claimUserToken`). It keeps the last 1,000 entries and is best-effort, so it never breaks the app. |
 | `recurrence.js` | `Recurrence`: pure date math (`nextDue`, `normalizeRepeat`, `isValidDate`, `today`). It also loads in Node for unit tests. |
-| `db.js` | `TodoDB`: an IndexedDB wrapper (`all`, `add(title, {due, tags, repeat})`, `setDone`, `stopRepeating`, `remove`, `normalizeTags`). Changes are logged as `user` only when they pass the private token from `TodoDB.claimUserToken()`, which `app.js` claims once and keeps in its closure. Every other caller, even one passing `{ actor: "user" }`, is logged as `api`. It cleans up stored records when reading them, and logs each change after it commits. |
+| `db.js` | `TodoDB`: an IndexedDB wrapper (`all`, `add(title, {due, tags, repeat})`, `setDone`, `stopRepeating`, `remove`, `normalizeTags`). Changes pass their last argument through to the log as the actor. It cleans up stored records when reading them, and logs each change after it commits. |
 | `app.js` | UI: rendering, the add form, the status and tag filters, tag chips, and the due and repeat badges |
 | `styles.css` | Styles, with light and dark themes |
 | `tests/issue-N/` | Per ticket: test cases (`test-cases.md`), an automated runner (`run.js`), the actions each case must log (`expected-log.json`), and the latest eval (`eval/`) |
@@ -42,14 +42,15 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
   - The actions are `task.add`, `task.complete`, `task.spawn`, `task.reopen`, `task.copy_removed`, `task.become_oneoff`, `task.stop_repeating`, `task.delete`, `ui.filter_status`, `ui.filter_tag`, `log.export`, `log.clear` and `test.case_start`.
   - **No titles or tag text are ever logged**; a tag filter is recorded only as `set` or `cleared`.
   - **Limits:** code driving the page's own buttons, such as an AI using the browser, is logged as `user`; `automated: true` marks a browser under automation. The log is client-side and best-effort, so it isn't tamper-proof against code running in the page.
-  - The eval counts only successful entries. A case that is meant to fail expects `<action>:error`.
+  - **Attribution:** an entry is `user` only when it carries the private token from `TodoLog.claimUserToken()`, which `app.js` claims once and keeps in its closure. It passes the token to `TodoDB` methods and `TodoLog.log`. Every other caller, even one passing `{ actor: "user" }`, is logged as `api`.
+  - **Eval expectations** use the syntax `action[:error][@actor]`, e.g. `task.add@user` or `task.delete:error@user`. Only successful entries satisfy a plain action, and a failed action that a case doesn't expect makes it fail (`unexpected-error`).
   - The Activity log panel renders entries as text only.
 - Render user input with `textContent` or `new Option(text)` only, never `innerHTML`.
 - To change the data shape, bump `DB_VERSION` and migrate existing records in `onupgradeneeded`. Never drop data (see the v1/v2 → v3 migration).
 
 ## Tests
 
-`node todo/tests/issue-14/run.js` runs the action-log suite (TC-01–TC-32, including the full issue-7 suite as TC-26). Both runners tag every end-to-end case in the log (`TodoLog.setTestCase`), then run the eval and write `eval/eval-report.md` and `eval/eval-report.json`. A case that didn't run, or didn't produce its expected actions, fails the run.
+`node todo/tests/issue-14/run.js` runs the action-log suite (TC-01–TC-38, including the full issue-7 suite as TC-26). Both runners tag every end-to-end case in the log (`TodoLog.setTestCase`), then run the eval and write `eval/eval-report.md` and `eval/eval-report.json`. A case that didn't run, or didn't produce its expected actions, fails the run.
 
 
 `node todo/tests/issue-7/run.js` runs the recurring-task suite (TC-01–TC-42): unit tests in Node, then end-to-end tests in headless Chrome. It needs Node 18+, Python 3 and Chrome; set `CHROME_PATH` if Chrome isn't in the default location. Set `SCREENSHOTS=<dir>` to save screenshots.

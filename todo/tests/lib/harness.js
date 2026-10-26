@@ -115,4 +115,32 @@ async function startBrowser({ width = 760, height = 900, shotsDir = process.env.
   return { BASE, send, nav, ev, shot, addInitScript, removeInitScript, consoleErrors, close };
 }
 
-module.exports = { TODO_DIR, sleep, createChecker, startBrowser };
+// Write the app log collected during a run (a Map of entries keyed by
+// sessionId:seq) to <suiteDir>/eval/run-log.jsonl, evaluate it against the
+// suite's test-cases.md + expected-log.json, write eval-report.{md,json}, and
+// record the result as the "EVAL" check.
+function runEval({ collected, suiteDir, suite, check }) {
+  try {
+    const E = require(path.join(TODO_DIR, "tests", "eval", "eval-logs.js"));
+    const outDir = path.join(suiteDir, "eval");
+    fs.mkdirSync(outDir, { recursive: true });
+    const byTime = (a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : a.seq - b.seq);
+    const logText = [...collected.values()].sort(byTime).map((e) => JSON.stringify(e)).join("\n");
+    fs.writeFileSync(path.join(outDir, "run-log.jsonl"), logText + (logText ? "\n" : ""));
+    const res = E.evaluate({
+      logText,
+      specText: fs.readFileSync(path.join(suiteDir, "test-cases.md"), "utf8"),
+      expected: JSON.parse(fs.readFileSync(path.join(suiteDir, "expected-log.json"), "utf8")),
+    });
+    E.writeReports(res, outDir, { suite });
+    const problems = res.cases.filter((c) => !["pass", "unit", "skipped"].includes(c.status)).map((c) => {
+      const list = (c.missing && c.missing.length ? c.missing : c.unexpected) || [];
+      return `${c.id}:${c.status}${list.length ? "(" + list.join(",") + ")" : ""}`;
+    });
+    check("EVAL", "eval of this run: every e2e case executed with its expected actions", res.ok, problems.join(" "));
+  } catch (e) {
+    check("EVAL", "eval of this run", false, e.message);
+  }
+}
+
+module.exports = { TODO_DIR, sleep, createChecker, startBrowser, runEval };

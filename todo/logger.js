@@ -26,40 +26,49 @@ const TodoLog = (() => {
     if (saved && TEST_CASE_RE.test(saved)) testCase = saved;
   } catch {}
 
+  // An entry is attributed to the person ("user") only when it carries this
+  // private token, which the page's own UI (app.js) claims once at startup and
+  // keeps in its closure. Anything else, including { actor: "user" }, is "api".
+  // (Code driving the page's own buttons is still "user"; `automated` marks
+  // browsers under automation. A client-side log can't stop code running in
+  // the page from tampering; this keeps honest API callers attributed right.)
+  let userToken = null;
+
   let dbPromise = null;
-  let unavailable = false;
   let chain = Promise.resolve(); // serialises writes; flush() waits for it
 
+  // Resolves with the connection, or null if the log can't be opened right
+  // now; a failed open is forgotten, so the next write tries again.
   function openDb() {
-    if (unavailable) return Promise.resolve(null);
-    if (!dbPromise) {
-      dbPromise = new Promise((resolve) => {
-        let req;
-        try {
-          req = indexedDB.open(DB_NAME, 1);
-        } catch {
-          unavailable = true; // e.g. storage blocked: log nothing, quietly
-          resolve(null);
-          return;
-        }
-        let gaveUp = false;
-        req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
-        req.onsuccess = () => {
-          const db = req.result;
-          if (gaveUp) { db.close(); return; } // a late open after a block: don't leave it dangling
-          db.onversionchange = () => { db.close(); dbPromise = null; };
-          resolve(db);
-        };
-        req.onerror = (e) => {
-          if (e && e.preventDefault) e.preventDefault(); // keep it out of the console
-          unavailable = true;
-          resolve(null);
-        };
-        // Another tab holds an older version: skip logging for now, try again later.
-        req.onblocked = () => { gaveUp = true; dbPromise = null; resolve(null); };
-      });
-    }
-    return dbPromise;
+    if (dbPromise) return dbPromise;
+    const pending = new Promise((resolve) => {
+      let req;
+      try {
+        req = indexedDB.open(DB_NAME, 1);
+      } catch {
+        resolve(null); // e.g. storage blocked: log nothing now, quietly
+        return;
+      }
+      let gaveUp = false;
+      req.onupgradeneeded = () => req.result.createObjectStore(STORE, { keyPath: "id", autoIncrement: true });
+      req.onsuccess = () => {
+        const db = req.result;
+        if (gaveUp) { db.close(); return; } // a late open after a block: don't leave it dangling
+        db.onversionchange = () => { db.close(); if (dbPromise === pending) dbPromise = null; };
+        resolve(db);
+      };
+      req.onerror = (e) => {
+        if (e && e.preventDefault) e.preventDefault(); // keep it out of the console
+        resolve(null);
+      };
+      // Another tab holds an older version: skip logging for now, try again later.
+      req.onblocked = () => { gaveUp = true; resolve(null); };
+    });
+    dbPromise = pending;
+    // A failed open is forgotten once it settles (not inside the executor,
+    // which runs before the assignment above), so the next write retries.
+    pending.then((db) => { if (!db && dbPromise === pending) dbPromise = null; });
+    return pending;
   }
 
   // Run `work(store)` in one transaction; resolves with the request's result.
@@ -91,20 +100,13 @@ const TodoLog = (() => {
     return chain;
   }
 
+  // Add an entry and drop everything older than the newest MAX_ENTRIES, in one
+  // range delete (ids only grow, so older entries have smaller ids).
   function addAndTrim(entry) {
     return tx("readwrite", (store) => {
-      store.add(entry);
-      const countReq = store.count();
-      countReq.onsuccess = () => {
-        let excess = countReq.result - MAX_ENTRIES;
-        if (excess <= 0) return;
-        store.openCursor().onsuccess = (e) => { // oldest first (ascending ids)
-          const cursor = e.target.result;
-          if (!cursor || excess <= 0) return;
-          cursor.delete();
-          excess--;
-          cursor.continue();
-        };
+      const add = store.add(entry);
+      add.onsuccess = () => {
+        if (add.result > MAX_ENTRIES) store.delete(IDBKeyRange.upperBound(add.result - MAX_ENTRIES));
       };
       return null;
     });
@@ -119,7 +121,7 @@ const TodoLog = (() => {
       ts: new Date().toISOString(),
       sessionId,
       seq: ++seq,
-      actor: actor === "user" ? "user" : "api",
+      actor: userToken !== null && actor === userToken ? "user" : "api",
       automated,
       action: text(action, 64),
       taskId: Number.isInteger(taskId) ? taskId : null,
@@ -133,6 +135,12 @@ const TodoLog = (() => {
 
   return {
     log,
+    // For the page's own UI only: the first caller gets the token, later callers null.
+    claimUserToken() {
+      if (userToken !== null) return null;
+      userToken = Object.freeze({});
+      return userToken;
+    },
     flush: () => chain,
     async all() {
       await chain;

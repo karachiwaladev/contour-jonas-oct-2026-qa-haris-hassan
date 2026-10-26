@@ -39,14 +39,14 @@ function clearError(source) {
 // Everything done through the page is logged as the user's action. The token
 // is claimed once and lives only in this closure, so scripts calling TodoDB
 // directly can't pass it (they are logged as "api").
-const USER = TodoDB.claimUserToken();
+const USER = TodoLog.claimUserToken();
 
 // Run a storage action from a click, then redraw from what is actually stored.
 // A failure is shown on the page (e.g. "close other tabs" during an upgrade),
 // so the UI never stays stuck on a stale state without explanation, and it is
 // logged as `action` unless the data layer already logged it.
 // Resolves true if the action succeeded.
-async function act(what, fn, action) {
+async function act(what, fn, action, taskId = null) {
   let ok = true;
   try {
     await fn();
@@ -54,7 +54,7 @@ async function act(what, fn, action) {
   } catch (err) {
     ok = false;
     showError(what, err, "action");
-    if (action && !(err && err.logged)) TodoLog.log({ action, actor: "user", outcome: "error", error: err });
+    if (action && !(err && err.logged)) TodoLog.log({ action, actor: USER, taskId, outcome: "error", error: err });
   }
   await render();
   return ok;
@@ -97,7 +97,7 @@ function taskItem(task) {
   checkbox.setAttribute("aria-label", `Mark "${task.title}" as done`);
   checkbox.addEventListener("change", () =>
     act("update the task", () => TodoDB.setDone(task.id, checkbox.checked, USER),
-      checkbox.checked ? "task.complete" : "task.reopen")
+      checkbox.checked ? "task.complete" : "task.reopen", task.id)
   );
 
   const body = document.createElement("div");
@@ -125,7 +125,7 @@ function taskItem(task) {
     stop.setAttribute("aria-label", `Stop repeating "${task.title}"`);
     stop.addEventListener("click", (e) => {
       e.preventDefault(); // don't toggle the checkbox through the label
-      act("stop repeating", () => TodoDB.stopRepeating(task.id, USER), "task.stop_repeating");
+      act("stop repeating", () => TodoDB.stopRepeating(task.id, USER), "task.stop_repeating", task.id);
     });
     meta.append(rep, stop);
   }
@@ -138,7 +138,7 @@ function taskItem(task) {
     chip.addEventListener("click", (e) => {
       e.preventDefault(); // don't toggle the checkbox through the label
       filters.tag = tag;
-      TodoLog.log({ action: "ui.filter_tag", actor: "user", changes: { tag: "set" } }); // never the tag text
+      TodoLog.log({ action: "ui.filter_tag", actor: USER, changes: { tag: "set" } }); // never the tag text
       render();
     });
     meta.append(chip);
@@ -150,7 +150,7 @@ function taskItem(task) {
   del.className = "delete";
   del.textContent = "Delete";
   del.setAttribute("aria-label", `Delete "${task.title}"`);
-  del.addEventListener("click", () => act("delete the task", () => TodoDB.remove(task.id, USER), "task.delete"));
+  del.addEventListener("click", () => act("delete the task", () => TodoDB.remove(task.id, USER), "task.delete", task.id));
 
   label.append(checkbox, body);
   li.append(label, del);
@@ -285,7 +285,7 @@ document.getElementById("log-export").addEventListener("click", async () => {
     link.download = `todo-log-${today()}.jsonl`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    TodoLog.log({ action: "log.export", actor: "user", changes: { entries: text ? text.split("\n").length : 0 } });
+    TodoLog.log({ action: "log.export", actor: USER, changes: { entries: text ? text.split("\n").length : 0 } });
   } catch (err) {
     showError("export the activity log", err, "action");
   }
@@ -293,7 +293,7 @@ document.getElementById("log-export").addEventListener("click", async () => {
 });
 
 document.getElementById("log-clear").addEventListener("click", async () => {
-  await TodoLog.clear({ actor: "user" });
+  await TodoLog.clear({ actor: USER });
   renderActivity();
 });
 
@@ -326,7 +326,7 @@ form.addEventListener("submit", async (e) => {
 for (const b of statusButtons) {
   b.addEventListener("click", () => {
     filters.status = b.dataset.status;
-    TodoLog.log({ action: "ui.filter_status", actor: "user", changes: { status: filters.status } });
+    TodoLog.log({ action: "ui.filter_status", actor: USER, changes: { status: filters.status } });
     render();
   });
 }
@@ -334,7 +334,7 @@ for (const b of statusButtons) {
 tagFilter.addEventListener("change", () => {
   filters.tag = tagFilter.value;
   // Which tag is user text, so only whether a tag filter is on is logged.
-  TodoLog.log({ action: "ui.filter_tag", actor: "user", changes: { tag: filters.tag ? "set" : "cleared" } });
+  TodoLog.log({ action: "ui.filter_tag", actor: USER, changes: { tag: filters.tag ? "set" : "cleared" } });
   render();
 });
 

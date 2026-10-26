@@ -129,43 +129,42 @@ const TodoDB = (() => {
     };
   }
 
-  // "user" attribution needs this private token, which the page's own UI
-  // (app.js) claims once at startup and keeps in a closure. A script or AI
-  // agent calling TodoDB directly, even with { actor: "user" }, is logged as
-  // "api". (Code driving the page's buttons is still "user"; the log's
-  // `automated` flag marks browsers under automation.)
-  let userToken = null;
-  const actorOf = (meta) => (userToken !== null && meta === userToken ? "user" : "api");
+  // An Error marked as already logged, so the UI layer doesn't log it again.
+  // Non-Error rejections and frozen errors can't carry the mark, so they are
+  // wrapped (the original stays as `cause`).
+  function markLogged(err) {
+    let e = err;
+    if (!(e instanceof Error) || !Object.isExtensible(e)) {
+      e = new Error(err && err.message ? err.message : String(err));
+      e.cause = err;
+    }
+    e.logged = true;
+    return e;
+  }
 
   // Run a change and record it in the action log (TodoLog, if loaded).
   // `work(events)` fills `events` from inside the transaction; they are logged
-  // only after it commits. A failure is logged once with outcome "error" and
-  // marked (`err.logged`) so the UI layer doesn't log it again.
+  // only after it commits. A failure is logged once with outcome "error".
+  // `meta` is passed to the log as the actor: only the page UI's private token
+  // (TodoLog.claimUserToken) makes an entry "user"; anything else is "api".
   async function logged(meta, failure, work) {
-    const actor = actorOf(meta);
     const log = typeof TodoLog !== "undefined" ? TodoLog.log : () => {};
     const events = [];
     try {
       const result = await work(events);
-      for (const ev of events) log({ ...ev, actor });
+      for (const ev of events) log({ ...ev, actor: meta });
       return result;
     } catch (err) {
-      log({ ...failure, actor, outcome: "error", error: err });
-      if (err && typeof err === "object") {
-        try { err.logged = true; } catch {}
-      }
-      throw err;
+      log({ ...failure, actor: meta, outcome: "error", error: err });
+      throw markLogged(err);
     }
   }
 
   return {
     normalizeTags,
-    // For the page's UI only: the first caller gets the token, later callers null.
-    claimUserToken() {
-      if (userToken !== null) return null;
-      userToken = Object.freeze({});
-      return userToken;
-    },
+    // The page UI's token comes from the log (see logger.js); this alias keeps
+    // one place to ask. The first caller gets it, later callers null.
+    claimUserToken: () => (typeof TodoLog !== "undefined" ? TodoLog.claimUserToken() : null),
     all: async () => (await run("readonly", (s) => s.getAll())).map(clean),
     add(title, { due = null, tags = [], repeat = "none" } = {}, meta) {
       const kind = R.normalizeRepeat(repeat);
@@ -256,8 +255,9 @@ const TodoDB = (() => {
       return logged(meta, { action: "task.stop_repeating", taskId: id }, (events) =>
         run("readwrite", (store) => {
           store.get(id).onsuccess = (e) => {
-            if (!e.target.result) return;
-            store.put({ ...e.target.result, repeat: "none" });
+            const raw = e.target.result;
+            if (!raw || R.normalizeRepeat(raw.repeat) === "none") return; // nothing to stop: no change, no log
+            store.put({ ...raw, repeat: "none" });
             events.push({ action: "task.stop_repeating", taskId: id, changes: { repeat: "none" } });
           };
         })

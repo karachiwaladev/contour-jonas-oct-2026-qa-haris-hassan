@@ -1,15 +1,16 @@
 {
   "suite": "issue-14",
-  "generatedAt": "2026-10-26T11:31:10.557Z",
-  "ok": false,
+  "generatedAt": "2026-10-26T11:35:09.570Z",
+  "ok": true,
   "summary": {
     "cases": 38,
-    "pass": 18,
+    "pass": 27,
     "unit": 8,
     "skipped": 3,
-    "notExecuted": 3,
-    "incomplete": 6,
-    "entries": 129,
+    "notExecuted": 0,
+    "incomplete": 0,
+    "unexpectedError": 0,
+    "entries": 135,
     "malformed": 0,
     "unknown": 0
   },
@@ -17,10 +18,9 @@
     {
       "id": "TC-01",
       "auto": "e2e",
-      "status": "incomplete",
-      "missing": [
-        "task.add@user"
-      ],
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add",
         "test.case_start"
@@ -29,11 +29,9 @@
     {
       "id": "TC-02",
       "auto": "e2e",
-      "status": "incomplete",
-      "missing": [
-        "task.complete@user",
-        "task.reopen@user"
-      ],
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
       "actions": [
         "task.complete",
         "task.reopen",
@@ -45,6 +43,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add",
         "task.complete",
@@ -59,6 +58,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add",
         "task.become_oneoff",
@@ -72,10 +72,9 @@
     {
       "id": "TC-05",
       "auto": "e2e",
-      "status": "incomplete",
-      "missing": [
-        "task.delete@user"
-      ],
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
       "actions": [
         "task.delete",
         "test.case_start"
@@ -84,12 +83,9 @@
     {
       "id": "TC-06",
       "auto": "e2e",
-      "status": "incomplete",
-      "missing": [
-        "task.add@api",
-        "task.complete@api",
-        "task.add@user"
-      ],
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add",
         "task.complete",
@@ -101,6 +97,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add",
         "test.case_start"
@@ -111,6 +108,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "test.case_start",
         "ui.filter_status",
@@ -122,6 +120,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "test.case_start",
         "test.fill"
@@ -132,6 +131,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "log.export",
         "test.case_start"
@@ -142,6 +142,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "log.clear"
       ]
@@ -151,6 +152,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add",
         "test.case_start"
@@ -161,6 +163,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add:error",
         "test.case_start"
@@ -171,6 +174,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "test.case_start"
       ]
@@ -180,6 +184,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add",
         "test.case_start"
@@ -196,6 +201,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "test.case_start"
       ]
@@ -205,6 +211,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add",
         "task.complete",
@@ -218,6 +225,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "test.case_start"
       ]
@@ -227,6 +235,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "test.case_start"
       ]
@@ -282,10 +291,9 @@
     {
       "id": "TC-29",
       "auto": "e2e",
-      "status": "incomplete",
-      "missing": [
-        "task.delete@api"
-      ],
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add",
         "task.delete",
@@ -297,6 +305,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "test.case_start"
       ]
@@ -306,6 +315,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "test.case_start",
         "test.time"
@@ -316,6 +326,7 @@
       "auto": "e2e",
       "status": "pass",
       "missing": [],
+      "unexpected": [],
       "actions": [
         "task.add",
         "test.case_start"
@@ -324,10 +335,9 @@
     {
       "id": "TC-33",
       "auto": "e2e",
-      "status": "incomplete",
-      "missing": [
-        "task.delete@api"
-      ],
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
       "actions": [
         "task.delete",
         "test.case_start"
@@ -348,23 +358,33 @@
     {
       "id": "TC-36",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.add@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add"
       ]
     },
     {
       "id": "TC-37",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": []
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
     },
     {
       "id": "TC-38",
       "auto": "e2e",
-      "status": "not-executed",
-      "missing": [
-        "task.delete:error@user"
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete:error",
+        "test.case_start"
       ]
     }
   ],
