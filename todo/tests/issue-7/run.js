@@ -38,6 +38,20 @@ function unit() {
     R.nextDue("2026-12-31", "daily", 31, "2026-12-01") === "2027-01-01",
     [R.nextDue("2026-12-29", "weekly", 29, "2026-12-01"), R.nextDue("2026-12-31", "daily", 31, "2026-12-01")].join(","));
 
+  {
+    const T0 = "2026-10-26";
+    const days = (s) => Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / 86400000;
+    let m, d, w, err = null;
+    try {
+      m = R.nextDue("1500-01-15", "monthly", 15, T0);
+      d = R.nextDue("1900-01-01", "daily", 1, T0);
+      w = R.nextDue("1900-01-01", "weekly", 1, T0);
+    } catch (e) { err = e.message; }
+    const wOk = !!w && days(w) >= days(T0) && days(w) - days(T0) < 7 && (days(w) - days("1900-01-01")) % 7 === 0;
+    check("TC-31", "far-past due dates catch up to on/after today",
+      !err && m === "2026-11-15" && d === T0 && wOk, err || JSON.stringify({ m, d, w }));
+  }
+
   let threw = null, r = {};
   try {
     r.none = R.nextDue("2026-01-01", "x", 1, "2026-01-01");
@@ -271,6 +285,21 @@ async function e2e() {
       await TodoDB.setDone(A, false); await TodoDB.setDone(A, true); await render(); await T.wait();
       return (await T.all()).length;`);
     check("TC-28", "undo after the copy was deleted does not restart the series", r === 1, String(r));
+
+    r = await ev(`await T.reset(); await T.add("Head check", T.ymd(0), "", "daily");
+      const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
+      const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.remove(B);
+      await TodoDB.setDone(A, false); await render(); await T.wait();
+      const it = T.items("Head check")[0];
+      const reopened = { badge: !!it.querySelector(".repeat"), stop: !!it.querySelector(".stop-repeat") };
+      await T.add("Done history", T.ymd(0), "", "weekly"); await T.tick("Done history");
+      const doneItem = T.items("Done history").find(l => l.classList.contains("done"));
+      const openItem = T.items("Done history").find(l => !l.classList.contains("done"));
+      const history = { doneBadge: !!doneItem.querySelector(".repeat"), openBadge: !!openItem.querySelector(".repeat") };
+      await TodoDB.setDone(A, true); const count = (await T.all()).filter(t => t.title === "Head check").length;
+      return { reopened, history, count };`);
+    check("TC-30", "only the open head of a series shows 🔁 / Stop repeating",
+      !r.reopened.badge && !r.reopened.stop && !r.history.doneBadge && r.history.openBadge && r.count === 1, JSON.stringify(r));
 
     await seed(3, [
       { title: "Bad monthly", done: false, createdAt: "oops", due: "bad", tags: [], repeat: "monthly", anchorDay: "x" },
