@@ -17,16 +17,26 @@ const filters = { status: "all", tag: "" };
 // Local calendar date as "YYYY-MM-DD", comparable with stored due dates.
 const today = Recurrence.today;
 
-// Run a storage action from a click, then redraw. A failed IndexedDB
-// transaction is logged, and the list is redrawn from what is actually stored,
-// so the UI never stays stuck on a stale state.
+const errorBox = document.getElementById("error");
+
+// Tell the user (role=alert) and log the details.
+function showError(message, err) {
+  console.error(message, err);
+  errorBox.textContent = message;
+  errorBox.hidden = false;
+}
+
+// Run a storage action from a click, then redraw from what is actually stored.
+// A failure is shown on the page (e.g. "close other tabs" during an upgrade),
+// so the UI never stays stuck on a stale state without explanation.
 async function act(what, fn) {
   try {
     await fn();
+    errorBox.hidden = true;
   } catch (err) {
-    console.error(`Couldn't ${what}:`, err);
+    showError(`Couldn't ${what}. ${err && err.message ? err.message : ""}`.trim(), err);
   }
-  render();
+  await render();
 }
 
 function formatDue(due) {
@@ -157,7 +167,13 @@ function matches(task) {
 }
 
 async function render() {
-  const tasks = await TodoDB.all();
+  let tasks;
+  try {
+    tasks = await TodoDB.all();
+  } catch (err) {
+    showError(`Couldn't load your tasks. ${err && err.message ? err.message : ""}`.trim(), err);
+    return;
+  }
   renderTagOptions(tasks);
   for (const b of statusButtons) b.setAttribute("aria-pressed", String(b.dataset.status === filters.status));
 

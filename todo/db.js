@@ -32,26 +32,37 @@ const TodoDB = (() => {
             if (!Array.isArray(task.tags)) task.tags = [];
             if (task.repeat === undefined) task.repeat = "none";
             if (task.anchorDay === undefined) task.anchorDay = R.dayOf(task.due);
+            if (task.nextId === undefined) task.nextId = null;
+            if (task.spawnedFrom === undefined) task.spawnedFrom = null;
             cursor.update(task);
             cursor.continue();
           };
         };
+        let gaveUp = false;
         // Another tab still has an older version open: fail clearly instead of
         // waiting forever, and let the next call try again.
         req.onblocked = () => {
-          dbPromise = null;
+          gaveUp = true;
+          if (dbPromise === pending) dbPromise = null;
           reject(new Error("The todo database is being upgraded. Close other tabs with this app open, then reload."));
         };
         req.onsuccess = () => {
           const db = req.result;
-          db.onversionchange = () => db.close(); // let a newer tab upgrade instead of blocking it
+          if (gaveUp) { db.close(); return; } // a late open after we gave up: don't leave it dangling
+          // Another tab (or devtools) is upgrading or deleting the database:
+          // close, and forget this connection so the next call reopens.
+          db.onversionchange = () => {
+            db.close();
+            if (dbPromise === pending) dbPromise = null;
+          };
           resolve(db);
         };
         req.onerror = () => {
-          dbPromise = null;
+          if (dbPromise === pending) dbPromise = null;
           reject(req.error);
         };
       });
+      const pending = dbPromise;
     }
     return dbPromise;
   }
@@ -122,9 +133,10 @@ const TodoDB = (() => {
     // make two copies).
     // - Completing a recurring occurrence creates the next one, at most once
     //   per occurrence: once `nextId` is set, the series has moved past it.
-    // - Reopening removes that copy only if it's untouched (still open and still
-    //   repeating the same way). If the copy was completed, stopped or deleted,
-    //   it and `nextId` are kept, so re-completing doesn't start a second series.
+    // - Reopening removes that copy only if it's untouched (still open, same
+    //   repeat, no copy of its own). Otherwise the copy is kept and the reopened
+    //   occurrence becomes a one-off (`repeat: "none"`), so there is never a
+    //   second live series and what the UI shows matches what will happen.
     setDone(id, done) {
       return run("readwrite", (store) => {
         store.get(id).onsuccess = (e) => {
@@ -153,13 +165,18 @@ const TodoDB = (() => {
           }
           store.get(c.nextId).onsuccess = (ev) => {
             const copy = ev.target.result;
+            // Untouched: still open, still repeating the same way, and it hasn't
+            // spawned a copy of its own. Only then is undo just "take it back".
             const untouched = !!copy && copy.done !== true && copy.spawnedFrom === raw.id &&
-              R.normalizeRepeat(copy.repeat) === c.repeat;
+              R.normalizeRepeat(copy.repeat) === c.repeat && idOrNull(copy.nextId) === null;
             if (untouched) {
               store.delete(c.nextId);
               store.put({ ...raw, done: false, nextId: null });
             } else {
-              store.put({ ...raw, done: false });
+              // The series has moved on (the copy was completed, stopped, deleted
+              // or has its own copy), so the reopened occurrence becomes a plain
+              // one-off task: no badge, and nothing recurs from it.
+              store.put({ ...raw, done: false, repeat: "none" });
             }
           };
         };

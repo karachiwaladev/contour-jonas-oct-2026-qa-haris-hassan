@@ -132,7 +132,14 @@ ul { list-style: none; margin: 12px 0 0; padding: 0; }
   text-decoration: underline;
 }
 
-.extras select { padding: 6px 10px; font-size: 14px; }
+.error {
+  margin: 12px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--danger-soft);
+  color: var(--danger);
+  font-size: 14px;
+}
 
 .chip {
   padding: 1px 8px;

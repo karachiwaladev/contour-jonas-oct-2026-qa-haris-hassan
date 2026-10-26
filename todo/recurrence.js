@@ -30,15 +30,8 @@
     return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
   }
 
-  // Next month on the anchor day, clamped to the month's last day
+  // `k` months after p, on the anchor day clamped to that month's last day
   // (anchor 31: Jan 31 → Feb 28/29 → Mar 31, never drifting to the 28th).
-  function addMonth(p, anchor) {
-    const y = p.m === 12 ? p.y + 1 : p.y;
-    const m = p.m === 12 ? 1 : p.m + 1;
-    return { y, m, d: Math.min(anchor, daysInMonth(y, m)) };
-  }
-
-  // `k` months after p, on the anchor day clamped to that month's length.
   function addMonths(p, k, anchor) {
     const total = p.y * 12 + (p.m - 1) + k;
     const y = Math.floor(total / 12), m = (total % 12) + 1;
@@ -77,13 +70,13 @@
     }
     // monthly
     const anchor = clampAnchor(anchorDay) || cur.d;
-    let next = addMonth(cur, anchor);
+    let next = addMonths(cur, 1, anchor);
     if (dayNumber(next) < dayNumber(t)) {
       // Far behind: jump straight to the month before today's, then step at
       // most twice. There is no cap, so any past date catches up.
       const behind = (t.y - cur.y) * 12 + (t.m - cur.m) - 1;
       if (behind > 1) next = addMonths(cur, behind, anchor);
-      while (dayNumber(next) < dayNumber(t)) next = addMonth(next, anchor);
+      while (dayNumber(next) < dayNumber(t)) next = addMonths(next, 1, anchor);
     }
     return format(next);
   }
