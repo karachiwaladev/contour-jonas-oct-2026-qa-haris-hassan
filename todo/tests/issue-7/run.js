@@ -52,6 +52,16 @@ function unit() {
       !err && m === "2026-11-15" && d === T0 && wOk, err || JSON.stringify({ m, d, w }));
   }
 
+  {
+    let got, next, err = null;
+    try {
+      got = [-5, true, "x", 0, 45, 15].map(R.clampAnchor);
+      next = R.nextDue("2026-10-15", "monthly", -5, "2026-10-01");
+    } catch (e) { err = e.message; }
+    check("TC-42", "corrupted anchor days are ignored, not moved to the 1st",
+      !err && JSON.stringify(got) === "[null,null,null,null,31,15]" && next === "2026-11-15", err || JSON.stringify({ got, next }));
+  }
+
   let threw = null, r = {};
   try {
     r.none = R.nextDue("2026-01-01", "x", 1, "2026-01-01");

@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. Run all automated cases with `node todo/tests/issue-7/run.js`; see *How to run* below.
 
-**Status:** TC-01–TC-25 were executed on `8fa311f` (25/25 passed). TC-26–TC-29 were added after the code review of PR #11 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-30–TC-31 were added after the second code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (2 cases). TC-32–TC-35 were added after the third code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-36–TC-38 were added after the fourth code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (3 cases; numeric tags are kept as text). TC-39–TC-41 were added after the fifth code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (3 cases).
+**Status:** TC-01–TC-25 were executed on `8fa311f` (25/25 passed). TC-26–TC-29 were added after the code review of PR #11 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-30–TC-31 were added after the second code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (2 cases). TC-32–TC-35 were added after the third code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (4 cases). TC-36–TC-38 were added after the fourth code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (3 cases; numeric tags are kept as text). TC-39–TC-41 were added after the fifth code-review round and were **reviewed and approved by hariscontour-gif on 2026-10-26** (3 cases). TC-42 was added after the sixth code-review round and was **reviewed and approved by hariscontour-gif on 2026-10-26** (1 case).
 
 **Dates** are relative to the day the suite runs: `T` is today, `T+3` is three days from today. Fixed calendar dates appear only in the unit cases (month-end, leap year, year boundary).
 
@@ -49,6 +49,7 @@ Written from the approved plan **before** implementation. Run all automated case
 | TC-39 | Reopening never deletes a separate task (code review round 5 #1, data loss) | Regression | Daily A due `T` | Tick A (creates B); press **Stop repeating** on B; untick A; tick A; untick A | B still exists and is open; no task is deleted | e2e | ⏳ |
 | TC-40 | No duplicate add on a fast double submit (code review round 5 #4) | Regression | Saving a task is slow | Submit "Buy milk" twice quickly | Exactly one "Buy milk" task | e2e | ⏳ |
 | TC-41 | Typing during a save is kept (code review round 5 #4) | Regression | Saving a task is slow | Submit "Buy milk", then type "Call mom" while it saves | "Buy milk" is added and the input still holds "Call mom" | e2e | ⏳ |
+| TC-42 | Corrupted anchor days are ignored, not moved to the 1st (code review round 6) | Security | — | `clampAnchor` with -5, true, "x", 0, 45, 15; then `nextDue("2026-10-15","monthly",-5,"2026-10-01")` | null, null, null, null, 31, 15; then `2026-11-15` (falls back to the due date's day) | unit | ⏳ |
 
 ## How to run
 
