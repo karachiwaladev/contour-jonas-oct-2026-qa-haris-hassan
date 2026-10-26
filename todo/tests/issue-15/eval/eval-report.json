@@ -1,16 +1,16 @@
 {
   "suite": "issue-15",
-  "generatedAt": "2026-10-26T12:06:42.178Z",
-  "ok": true,
+  "generatedAt": "2026-10-26T12:11:13.496Z",
+  "ok": false,
   "summary": {
-    "cases": 30,
-    "pass": 28,
+    "cases": 35,
+    "pass": 32,
     "unit": 0,
     "skipped": 2,
     "notExecuted": 0,
-    "incomplete": 0,
+    "incomplete": 1,
     "unexpectedError": 0,
-    "entries": 148,
+    "entries": 171,
     "malformed": 0,
     "unknown": 0
   },
@@ -372,6 +372,74 @@
     },
     {
       "id": "TC-30",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "task.edit",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-31",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.edit",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-32",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.edit",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-33",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "task.edit:error",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-34",
+      "auto": "e2e",
+      "status": "incomplete",
+      "missing": [
+        "task.edit@user"
+      ],
+      "unexpected": [
+        "task.edit:error"
+      ],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "task.edit:error",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-35",
       "auto": "e2e",
       "status": "pass",
       "missing": [],

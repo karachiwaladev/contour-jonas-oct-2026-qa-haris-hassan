@@ -33,5 +33,10 @@
   "TC-27": ["task.edit:error@user"],
   "TC-28": ["task.add:error@api", "task.edit@user"],
   "TC-29": ["task.complete@user"],
-  "TC-30": ["task.edit@user"]
+  "TC-30": ["task.edit@user"],
+  "TC-31": ["task.edit@user"],
+  "TC-32": [],
+  "TC-33": ["task.edit:error@user"],
+  "TC-34": ["task.edit@user"],
+  "TC-35": ["task.edit@user"]
 }

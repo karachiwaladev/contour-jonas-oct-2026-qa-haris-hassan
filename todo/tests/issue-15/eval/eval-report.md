@@ -1,7 +1,7 @@
 # Eval report: issue-15
 
-**Result: PASS**. 28 passed, 0 not executed, 0 incomplete, 0 with unexpected failures, 0 unit, 2 skipped. 148 log entries read, 0 malformed, 0 unknown case tags.
-Generated 2026-10-26T12:06:42.178Z.
+**Result: FAIL**. 32 passed, 0 not executed, 1 incomplete, 0 with unexpected failures, 0 unit, 2 skipped. 171 log entries read, 0 malformed, 0 unknown case tags.
+Generated 2026-10-26T12:11:13.496Z.
 
 | Case | Auto | Status | Missing actions / note |
 |------|------|--------|------------------------|
@@ -35,3 +35,8 @@ Generated 2026-10-26T12:06:42.178Z.
 | TC-28 | e2e | ✅ pass |  |
 | TC-29 | e2e | ✅ pass |  |
 | TC-30 | e2e | ✅ pass |  |
+| TC-31 | e2e | ✅ pass |  |
+| TC-32 | e2e | ✅ pass |  |
+| TC-33 | e2e | ✅ pass |  |
+| TC-34 | e2e | ❌ incomplete | missing: task.edit@user |
+| TC-35 | e2e | ✅ pass |  |

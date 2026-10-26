@@ -352,6 +352,80 @@ async function e2e() {
     check("TC-30", "double submit saves once", r.edits === 1 && r.title === "Saved once", JSON.stringify(r));
     await collect();
 
+    // TC-31 no cancel during a save
+    await ev(`await T.reset();`);
+    const id31 = await ev(`return await T.add("Slow save");`);
+    await tag("TC-31");
+    r = await ev(`const real = TodoDB.update; TodoDB.update = async (...a) => { await T.wait(400); return real.apply(TodoDB, a); };
+      T.item(${id31}).querySelector(".edit").click(); await T.wait(100);
+      const f = T.item(${id31}).querySelector(".edit-form"); f.querySelector(".edit-priority").value = "low";
+      f.querySelector(".edit-save").click(); await T.wait(50);
+      const cancel = f.querySelector(".edit-cancel"); const disabled = cancel.disabled; cancel.click();
+      f.querySelector(".edit-title").dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); await T.wait(50);
+      const openDuring = !!document.querySelector(".edit-form");
+      await T.wait(700); TodoDB.update = real;
+      return { disabled, openDuring, openAfter: !!document.querySelector(".edit-form"), p: (await T.get(${id31})).priority };`);
+    check("TC-31", "Cancel/Escape disabled during a save; save completes",
+      r.disabled && r.openDuring && !r.openAfter && r.p === "low", JSON.stringify(r));
+    await collect();
+
+    // TC-32 half-typed date isn't silently cleared
+    const id32 = await ev(`return await T.add("Dated", { due: T.ymd(5) });`);
+    await tag("TC-32");
+    r = await ev(`T.item(${id32}).querySelector(".edit").click(); await T.wait(100);
+      const f = T.item(${id32}).querySelector(".edit-form"); const due = f.querySelector(".edit-due");
+      Object.defineProperty(due, "validity", { get: () => ({ badInput: true, valid: false }) }); due.value = "";
+      f.querySelector(".edit-save").click(); await T.wait();
+      const g = document.querySelector(".edit-form"); const msg = g && g.querySelector(".edit-error");
+      const res = { open: !!g, msg: msg && !msg.hidden ? msg.textContent : null, due: (await T.get(${id32})).due, exp: T.ymd(5) };
+      if (g) g.querySelector(".edit-cancel").click(); await T.wait(); return res;`);
+    check("TC-32", "incomplete date blocks the save with a message; due unchanged",
+      r.open && /complete date/i.test(r.msg || "") && r.due === r.exp, JSON.stringify(r));
+    await collect();
+
+    // TC-33 no stale form after the task is gone
+    const id33 = await ev(`return await T.add("Vanishing");`);
+    await tag("TC-33");
+    r = await ev(`T.item(${id33}).querySelector(".edit").click(); await T.wait(100);
+      const f = T.item(${id33}).querySelector(".edit-form"); f.querySelector(".edit-title").value = "Too late";
+      await TodoDB.remove(${id33});
+      f.querySelector(".edit-save").click(); await T.wait(300);
+      const box = document.getElementById("error");
+      const res = { formOpen: !!document.querySelector(".edit-form"), box: !box.hidden ? box.textContent : null };
+      box.hidden = true; return res;`);
+    check("TC-33", "form closes and the page error box explains", !r.formOpen && /completed or deleted/i.test(r.box || ""), JSON.stringify(r));
+    await collect();
+
+    // TC-34 untouched legacy titles aren't re-checked
+    await tag("TC-34");
+    r = await ev(`const legacy = " " + "z".repeat(205) + " ";
+      const id = await new Promise((res, rej) => { const q = indexedDB.open("todo-app"); q.onsuccess = () => { const db = q.result;
+        const tx = db.transaction("tasks", "readwrite"); const req = tx.objectStore("tasks").add({ title: legacy, done: false, createdAt: Date.now(),
+          due: null, tags: [], repeat: "none", anchorDay: null, nextId: null, spawnedFrom: null, priority: "medium" });
+        tx.oncomplete = () => { db.close(); res(req.result); }; tx.onerror = () => rej(tx.error); }; q.onerror = () => rej(q.error); });
+      await render(); await T.wait();
+      await T.edit(id, { priority: "high" });
+      const e = (await T.entries("TC-34")).filter(x => x.action === "task.edit").pop();
+      return { p: (await T.get(id)).priority, fields: e && e.changes.fields };`);
+    check("TC-34", "priority-only edit of a long legacy title saves; fields = [priority]",
+      r.p === "high" && JSON.stringify(r.fields) === '["priority"]', JSON.stringify(r));
+    await collect();
+
+    // TC-35 a slow save doesn't block another task's edit
+    await ev(`await T.reset();`);
+    const [id35a, id35b] = await ev(`return [await T.add("Alpha"), await T.add("Beta")];`);
+    await tag("TC-35");
+    r = await ev(`const real = TodoDB.update;
+      TodoDB.update = async (id, ...a) => { if (id === ${id35a}) await T.wait(500); return real.call(TodoDB, id, ...a); };
+      T.item(${id35a}).querySelector(".edit").click(); await T.wait(100);
+      T.item(${id35a}).querySelector(".edit-title").value = "Alpha 2"; T.item(${id35a}).querySelector(".edit-save").click(); await T.wait(50);
+      T.item(${id35b}).querySelector(".edit").click(); await T.wait(100);
+      T.item(${id35b}).querySelector(".edit-title").value = "Beta 2"; T.item(${id35b}).querySelector(".edit-save").click();
+      await T.wait(900); TodoDB.update = real;
+      return { a: (await T.get(${id35a})).title, b: (await T.get(${id35b})).title, open: !!document.querySelector(".edit-form") };`);
+    check("TC-35", "slow save of A doesn't block B's save", r.a === "Alpha 2" && r.b === "Beta 2" && !r.open, JSON.stringify(r));
+    await collect();
+
     // TC-18 tampered priority
     await seed(4, [
       { title: "Evil", done: false, createdAt: 1, due: null, tags: [], repeat: "none", anchorDay: null, nextId: null, spawnedFrom: null, priority: "<img src=x onerror=window.pwned=1>" },

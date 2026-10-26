@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. This builds on #16 (the action log), so each end-to-end case is tagged in the log and checked by the eval. **Expected log** uses the eval syntax `action[:error][@actor]`; `expected-log.json` holds the same expectations for the eval.
 
-**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-26** (25 cases). TC-26–TC-30 were added after code-review round 1 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (5 cases). Not executed yet.
+**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-26** (25 cases). TC-26–TC-30 were added after code-review round 1 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (5 cases). TC-31–TC-35 were added after code-review round 2 and were **reviewed and approved by hariscontour-gif on 2026-10-26** (5 cases). Not executed yet.
 
 `T` means today.
 
@@ -38,6 +38,11 @@ Written from the approved plan **before** implementation. This builds on #16 (th
 | TC-28 | One title rule; long legacy titles stay editable (code review #3) | Regression | — | `TodoDB.add` with a 250-character title; then a stored legacy task with a 250-character title gets its priority edited | The add is rejected; the legacy task's priority edit saves (the title is only checked when it changes) | task.add:error@api, task.edit@user | e2e | ⏳ |
 | TC-29 | Unsaved edits survive re-renders (code review #4) | Regression | Tasks A and B | Edit A, type the title "Draft"; then tick B | A's form is still open and still shows "Draft" | task.complete@user | e2e | ⏳ |
 | TC-30 | One save at a time (code review #5) | Regression | An open edit form | Submit it twice quickly | Exactly one `task.edit` entry | task.edit@user | e2e | ⏳ |
+| TC-31 | No cancel during a save (code review round 2 #1) | Regression | A slow `TodoDB.update` | Edit, press Save, then Cancel / Escape while it saves | Cancel is disabled and Escape ignored until the save ends; then the form closes with the change saved | task.edit@user | e2e | ⏳ |
+| TC-32 | A half-typed date isn't silently cleared (code review round 2 #2) | Regression | Task due `T+5`; the edit form's date field holds an incomplete date | Save | Not saved; the form says to enter a complete date or clear the field; the stored due date is unchanged | — | e2e | ⏳ |
+| TC-33 | No stale form after the task is gone (code review round 2 #3) | Regression | Edit form open | Delete the task through the API, then Save | The form closes; the page error box says the task was completed or deleted | task.edit:error@user | e2e | ⏳ |
+| TC-34 | Untouched legacy titles aren't re-checked (code review round 2 #4) | Regression | A stored legacy title: 205 characters with surrounding spaces | Edit only its priority | Saved; logged `fields` is just `["priority"]` | task.edit@user | e2e | ⏳ |
+| TC-35 | A slow save doesn't block another task's edit (code review round 2 #5) | Regression | Task A's save is slow | Save A; meanwhile open B's edit and save it | Both are saved; no edit form is left open | task.edit@user | e2e | ⏳ |
 
 ## How to run (once implemented)
 
