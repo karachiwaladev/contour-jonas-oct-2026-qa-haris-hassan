@@ -1,16 +1,16 @@
 {
   "suite": "issue-25",
-  "generatedAt": "2026-10-27T07:23:28.046Z",
+  "generatedAt": "2026-10-27T07:31:42.366Z",
   "ok": true,
   "summary": {
-    "cases": 31,
-    "pass": 30,
+    "cases": 35,
+    "pass": 34,
     "unit": 0,
     "skipped": 1,
     "notExecuted": 0,
     "incomplete": 0,
     "unexpectedError": 0,
-    "entries": 224,
+    "entries": 243,
     "malformed": 0,
     "unknown": 0
   },
@@ -398,6 +398,8 @@
       "missing": [],
       "unexpected": [],
       "actions": [
+        "task.add",
+        "task.delete",
         "test.case_start",
         "ui.filter_due",
         "ui.filter_search"
@@ -408,6 +410,56 @@
       "auto": "e2e",
       "status": "skipped",
       "note": "runs the issue-15, issue-14 and issue-7 suites in their own browsers; they write their own eval reports"
+    },
+    {
+      "id": "TC-32",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.complete",
+        "test.case_start",
+        "ui.filter_search"
+      ]
+    },
+    {
+      "id": "TC-33",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_due",
+        "ui.filter_search"
+      ]
+    },
+    {
+      "id": "TC-34",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_search"
+      ]
+    },
+    {
+      "id": "TC-35",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start",
+        "ui.filter_search"
+      ]
     }
   ],
   "malformed": [],
