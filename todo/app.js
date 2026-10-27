@@ -49,7 +49,7 @@ function clearError(source) {
 // The action log is best-effort: if logger.js didn't load, use a no-op stand-in
 // so the app itself keeps working.
 const Log = typeof TodoLog !== "undefined" ? TodoLog : {
-  log() {}, claimUserToken: () => null, recent: async () => [], count: async () => 0,
+  log() {}, logNow() {}, claimUserToken: () => null, recent: async () => [], count: async () => 0,
   exportJSONL: async () => "", clear: async () => {}, flush: async () => {},
 };
 
@@ -67,16 +67,19 @@ const SEARCH_LOG_DELAY = 400;
 let searchLogged = "";
 let searchLogTimer = null;
 
-function logSearch() {
+// `now`: write synchronously (page unload), see TodoLog.logNow.
+function logSearch(now = false) {
   clearTimeout(searchLogTimer);
   searchLogTimer = null;
   if (filters.search === searchLogged) return;
   searchLogged = filters.search;
-  Log.log({ action: "ui.filter_search", actor: USER, changes: { search: filters.search ? "set" : "cleared" } });
+  const entry = { action: "ui.filter_search", actor: USER, changes: { search: filters.search ? "set" : "cleared" } };
+  if (now === true) Log.logNow(entry);
+  else Log.log(entry);
 }
 
-function flushSearchLog() {
-  if (searchLogTimer !== null) logSearch();
+function flushSearchLog(now = false) {
+  if (searchLogTimer !== null) logSearch(now);
 }
 
 // Every other entry this page logs goes through here (as the user).
@@ -648,8 +651,8 @@ searchInput.addEventListener("keydown", (e) => {
 });
 
 // Don't lose a pending search entry when the page goes away.
-window.addEventListener("pagehide", flushSearchLog);
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushSearchLog(); });
+window.addEventListener("pagehide", () => flushSearchLog(true));
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushSearchLog(true); });
 
 // Filters reset on reload: don't let the browser restore old control values.
 searchInput.value = "";

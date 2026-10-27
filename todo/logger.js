@@ -35,6 +35,7 @@ const TodoLog = (() => {
   let userToken = null;
 
   let dbPromise = null;
+  let conn = null; // the open connection once known, for logNow() during page unload
   let chain = Promise.resolve(); // serialises writes; flush() waits for it
 
   // Resolves with the connection, or null if the log can't be opened right
@@ -54,7 +55,8 @@ const TodoLog = (() => {
       req.onsuccess = () => {
         const db = req.result;
         if (gaveUp) { db.close(); return; } // a late open after a block: don't leave it dangling
-        db.onversionchange = () => { db.close(); if (dbPromise === pending) dbPromise = null; };
+        db.onversionchange = () => { db.close(); if (conn === db) conn = null; if (dbPromise === pending) dbPromise = null; };
+        conn = db;
         resolve(db);
       };
       req.onerror = (e) => {
@@ -127,8 +129,8 @@ const TodoLog = (() => {
     try { return changes && typeof changes === "object" ? JSON.parse(JSON.stringify(changes)) : {}; } catch { return {}; }
   }
 
-  function log({ action, actor = "api", taskId = null, changes = {}, outcome = "ok", error } = {}) {
-    if (typeof action !== "string" || !ACTION_RE.test(action)) return;
+  function makeEntry({ action, actor = "api", taskId = null, changes = {}, outcome = "ok", error } = {}) {
+    if (typeof action !== "string" || !ACTION_RE.test(action)) return null;
     const entry = {
       ts: new Date().toISOString(),
       sessionId,
@@ -142,11 +144,35 @@ const TodoLog = (() => {
     };
     if (error !== undefined) entry.error = text(error && error.message ? error.message : error, 200);
     if (testCase) entry.testCase = testCase;
+    return entry;
+  }
+
+  function log(fields) {
+    const entry = makeEntry(fields);
+    if (entry) enqueue(() => addAndTrim(entry));
+  }
+
+  // Like log(), but starts the write synchronously when the log is already
+  // open, for page unload (pagehide), where a queued write would be dropped.
+  // The log is trimmed on the next ordinary write.
+  function logNow(fields) {
+    const entry = makeEntry(fields);
+    if (!entry) return;
+    if (conn) {
+      try {
+        const t = conn.transaction(STORE, "readwrite");
+        t.objectStore(STORE).add(entry);
+        t.onerror = (e) => { if (e && e.preventDefault) e.preventDefault(); };
+        if (t.commit) t.commit();
+        return;
+      } catch {} // closed under us: fall back to the queue
+    }
     enqueue(() => addAndTrim(entry));
   }
 
   return {
     log,
+    logNow,
     // For the page's own UI only: the first caller gets the token, later callers null.
     claimUserToken() {
       if (userToken !== null) return null;

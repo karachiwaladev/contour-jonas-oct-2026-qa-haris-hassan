@@ -22,7 +22,7 @@ const ymd = (o) => { const d = new Date(); d.setDate(d.getDate() + o); const p =
 async function e2e() {
   let b;
   try { b = await startBrowser(); } catch (e) { check("E2E", "browser starts", false, e.message); return; }
-  const { nav, ev, send, shot, consoleErrors } = b;
+  const { nav, ev, send, shot, addInitScript, removeInitScript, consoleErrors } = b;
   const collected = new Map();
   let r;
 
@@ -550,10 +550,15 @@ async function e2e() {
     await tc("TC-35", "matching doesn't depend on the browser's locale", async () => {
       await fresh([["IDEA", { tags: "inbox" }], ["Other"]]);
       await send("Emulation.setLocaleOverride", { locale: "tr-TR" });
+      // Headless Chrome's locale override reaches Intl but not the default of
+      // toLocaleLowerCase/UpperCase, so make those follow tr-TR too, as a
+      // Turkish-locale browser does (I -> dotless i).
+      const initId = await addInitScript(`for (const m of ["toLocaleLowerCase", "toLocaleUpperCase"]) {
+        const real = String.prototype[m]; String.prototype[m] = function (loc) { return real.call(this, loc === undefined ? "tr-TR" : loc); }; }`);
       try {
         await open();
         await tag("TC-35");
-        const turkish = await ev(`return "I".toLocaleLowerCase() === "ı";`); // the override is live: I -> dotless i
+        const turkish = await ev(`return Intl.DateTimeFormat().resolvedOptions().locale === "tr-TR" && "I".toLocaleLowerCase() === "\\u0131";`);
         await search("#INBOX"); const inbox = await ev(`return T.sorted();`);
         await search("idea"); const idea = await ev(`return T.sorted();`);
         await settle();
@@ -561,6 +566,7 @@ async function e2e() {
           turkish === true && JSON.stringify(inbox) === '["IDEA"]' && JSON.stringify(idea) === '["IDEA"]', JSON.stringify({ turkish, inbox, idea }));
       } finally {
         await send("Emulation.setLocaleOverride", {});
+        await removeInitScript(initId);
         await collect();
       }
     });
