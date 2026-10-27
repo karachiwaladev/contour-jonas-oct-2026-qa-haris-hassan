@@ -1,13 +1,7 @@
 #!/usr/bin/env node
 // Legacy Larry (LARRY-01..05): upgrading v1/v2/v3 data to v4. See ../test-cases.md.
 //   node todo/tests/personas/legacy-larry/run.js
-const { runPersona } = require("../lib");
-
-const ymd = (o) => { const d = new Date(); d.setDate(d.getDate() + o); const p = (n) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`; };
-const HOLDER = `if (location.pathname.endsWith("/index.html")) {
-  const q = indexedDB.open("todo-app", 3); q.onsuccess = () => { window.__holder = q.result; };
-}`;
-const v3 = (title, extra = {}) => ({ title, done: false, createdAt: 1, due: null, tags: [], repeat: "none", anchorDay: null, nextId: null, spawnedFrom: null, ...extra });
+const { runPersona, ymd, v3, HOLDER } = require("../lib");
 
 runPersona({
   dir: __dirname, prefix: "LARRY",

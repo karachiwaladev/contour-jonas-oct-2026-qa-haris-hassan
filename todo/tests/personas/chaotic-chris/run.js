@@ -1,13 +1,7 @@
 #!/usr/bin/env node
 // Chaotic Chris (CHRIS-01..06): fast fingers and two tabs. See ../test-cases.md.
 //   node todo/tests/personas/chaotic-chris/run.js
-const { runPersona } = require("../lib");
-
-// Run in the page before the app's scripts: "another tab" that opened the
-// database at an older version and never closes it on versionchange.
-const HOLDER = `if (location.pathname.endsWith("/index.html")) {
-  const q = indexedDB.open("todo-app", 3); q.onsuccess = () => { window.__holder = q.result; };
-}`;
+const { runPersona, HOLDER, v3 } = require("../lib");
 
 runPersona({
   dir: __dirname, prefix: "CHRIS",
@@ -66,7 +60,7 @@ runPersona({
     });
 
     await kase("CHRIS-04", "second tab upgrades the DB (onblocked)", async () => {
-      await seed(3, [{ title: "Kept", done: false, createdAt: 1, due: null, tags: [], repeat: "none", anchorDay: null, nextId: null, spawnedFrom: null }]);
+      await seed(3, [v3("Kept")]);
       const script = await b.addInitScript(HOLDER);
       const exceptionsBefore = consoleErrors.filter((m) => m.startsWith("exception")).length;
       try {

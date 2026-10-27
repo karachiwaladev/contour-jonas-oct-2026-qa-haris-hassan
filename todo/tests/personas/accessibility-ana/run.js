@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Accessibility Ana (ANA-01..07): names, focus order, alerts, contrast. See ../test-cases.md.
-// ANA-05 and ANA-06 (light/dark contrast) are known weaknesses: reported as FINDING, not FAIL.
+// ANA-05 and ANA-06 (light/dark contrast) are known weaknesses: reported as FINDING, not FAIL;
+// each prints every element's measured ratio.
 // ANA-07 needs a real screen reader and is printed as MANUAL.
 //   node todo/tests/personas/accessibility-ana/run.js
 const { runPersona } = require("../lib");
@@ -20,7 +21,15 @@ const CONTRAST = `
     button: of(q("#new-task button[type=submit]")),
   };`;
 
-const below = (r, min = 4.5) => Object.entries(r).filter(([, v]) => typeof v !== "number" || v < min).map(([k, v]) => `${k} ${v}:1`);
+// Every element must reach AA (4.5:1). Details list each measured ratio, the failing ones first.
+const AA = 4.5;
+const judge = (r) => {
+  const fails = Object.entries(r).filter(([, v]) => typeof v !== "number" || v < AA);
+  const all = Object.entries(r).map(([k, v]) => `${k} ${v}:1`).join(", ");
+  return [fails.length === 0,
+    (fails.length ? `below ${AA}:1: ${fails.map(([k, v]) => `${k} ${v}:1`).join(", ")}; ` : `all ≥ ${AA}:1; `) + `measured: ${all}`,
+    { show: true }];
+};
 
 runPersona({
   dir: __dirname, prefix: "ANA", findingIds: ["ANA-05", "ANA-06"],
@@ -88,8 +97,7 @@ runPersona({
       await tag("ANA-05");
       await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "light" }] });
       r = await ev(`await T.frame(); ${CONTRAST}`);
-      const low = below(r);
-      return [low.length === 0 && Math.abs(r.button - 5.17) < 0.05, low.length ? `below 4.5:1: ${low.join(", ")}; all: ${JSON.stringify(r)}` : r];
+      return judge(r);
     });
 
     await kase("ANA-06", "contrast — dark theme", async () => {
@@ -97,8 +105,7 @@ runPersona({
       await send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-color-scheme", value: "dark" }] });
       try { r = await ev(`await T.frame(); ${CONTRAST}`); }
       finally { await send("Emulation.setEmulatedMedia", { features: [] }); }
-      const low = below(r);
-      return [low.length === 0, low.length ? `below AA 4.5:1 in dark theme: ${low.join(", ")} (body ${r.body}:1, muted ${r.muted}:1 pass)` : r];
+      return judge(r);
     });
 
     manual("ANA-07", "screen-reader walkthrough", "needs a person with a real screen reader (NVDA/VoiceOver); see test-cases.md");

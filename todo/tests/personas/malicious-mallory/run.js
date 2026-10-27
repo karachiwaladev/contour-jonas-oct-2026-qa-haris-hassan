@@ -1,9 +1,7 @@
 #!/usr/bin/env node
 // Malicious Mallory (MAL-01..05): XSS payloads, tampered storage, forged actor. See ../test-cases.md.
 //   node todo/tests/personas/malicious-mallory/run.js
-const { runPersona } = require("../lib");
-
-const base = { done: false, createdAt: 1, due: null, tags: [], repeat: "none", anchorDay: null, nextId: null, spawnedFrom: null, priority: "medium" };
+const { runPersona, base } = require("../lib");
 
 runPersona({
   dir: __dirname, prefix: "MAL",
@@ -32,8 +30,8 @@ runPersona({
 
     await kase("MAL-03", "tampered stored fields coerced on read", async () => {
       await seed(4, [
-        { ...base, title: "Bad fields", createdAt: 1, repeat: "<img src=x onerror=window.pwned=1>", due: "2026-13-45", anchorDay: -5, priority: "urgent" },
-        { ...base, title: "Bad anchor", createdAt: 2, repeat: "yearly", due: "not-a-date", anchorDay: 99, priority: { evil: true } },
+        base("Bad fields", { createdAt: 1, repeat: "<img src=x onerror=window.pwned=1>", due: "2026-13-45", anchorDay: -5, priority: "urgent" }),
+        base("Bad anchor", { createdAt: 2, repeat: "yearly", due: "not-a-date", anchorDay: 99, priority: { evil: true } }),
       ]);
       const before = consoleErrors.length;
       await open();
@@ -59,7 +57,7 @@ runPersona({
     });
 
     await kase("MAL-05", "tampered tag array dropped safely", async () => {
-      await seed(4, [{ ...base, title: "Odd tags", tags: [null, {}, 5, "ok", true, ["x"]] }]);
+      await seed(4, [base("Odd tags", { tags: [null, {}, 5, "ok", true, ["x"]] })]);
       await open();
       await tag("MAL-05");
       r = await ev(`return [...document.querySelectorAll("#task-list .chip")].map(c => c.textContent);`);

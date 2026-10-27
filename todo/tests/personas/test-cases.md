@@ -2,7 +2,7 @@
 
 **Status:** **Reviewed and approved by hariscontour-gif on 2026-10-27** (77 cases: 65 for the 11 user personas, automated; 12 for Hostile Hank, run by hand). The 11 user personas are automated; Hostile Hank's 12 cases are run by hand. Weakness cases are reported as findings, not failures. ANA-05 was reclassified from a failure to a finding by hariscontour-gif on 2026-10-27.
 
-Executed 2026-10-27 on a5ae6b5 (app code unchanged) with `node todo/tests/personas/run-all.js`: 64 automated cases ran — 61 pass, 0 fail, 2 findings (ANA-05: light-theme "Due today" pill 4.44:1 and tag chip 4.48:1, below 4.5:1; ANA-06: dark-theme button label 3.23:1, tag chip 4.36:1); VERA-01..05 met their budgets. ANA-07 and HANK-01..12 are manual (📝).
+Executed 2026-10-27 on 5665a1a plus the code-review fixes (app code unchanged) with `node todo/tests/personas/run-all.js`: 64 automated cases ran — 62 pass, 0 fail, 2 findings (ANA-05: light-theme "Due today" pill 4.44:1 and tag chip 4.48:1, below 4.5:1; ANA-06: dark-theme button label 3.23:1, tag chip 4.36:1); VERA-01..05 passed their correctness checks and met their time budgets. ANA-07 and HANK-01..12 are manual (📝).
 
 These are end-to-end **journeys** for the twelve personas described in
 `personas.md`. They complement, not duplicate, the existing issue-7, issue-14 and
@@ -211,15 +211,19 @@ finding / manual table and the findings list. It exits non-zero only on a FAIL.
 - **Findings:** each runner keeps a fixed list of finding-type ids from this spec
   (ANA-05, ANA-06, VERA-01..05). One of those that misses its expectation prints
   `FINDING <ID> <name> :: <details>` and doesn't fail the run; if it meets it, it prints PASS.
+  Each VERA case prints two lines: its correctness (row counts, counter, console
+  errors, log cap, tag options), which FAILs normally, and its time budget, the
+  only part reported as a finding. A case that throws or times out (10 s) is a FAIL.
 - **Eval:** the logger only accepts `TC-<n>` tags, so each case is tagged
   `TC-<n>` while it runs and mapped back to its persona id in the collected log.
   The shared eval (`tests/eval/eval-logs.js`, which now accepts ids like
-  `CARLA-01` as well as `TC-12`) checks the persona's rows of this file against
-  `<persona>/expected-log.json` and writes `<persona>/eval/`. Cases whose expected
+  `CARLA-01` as well as `TC-12`; `runEval` takes the persona's rows as `specText`) checks the persona's rows of this file against
+  `<persona>/expected-log.json` and writes `<persona>/eval/`. Each case starts
+  untagged, so its setup is never logged under the previous case. Cases whose expected
   log is `—` but that deliberately trigger a failed action (PETE-03, ANA-04) are
   `skip` entries there (no log assertion), and their runner checks the log itself.
 - **Unit cases** (RITA-04, BOB-04) run in Node. **Manual:** ANA-07 (real screen
   reader) and all Hostile Hank cases, run by hand by a reviewer.
 - **Seeding** legacy, tampered and large datasets uses `seed(version, records)`
-  on `personas/blank.html`; an "older tab" (CHRIS-04, LARRY-05) is an init script
+  on `tests/issue-7/blank.html`; an "older tab" (CHRIS-04, LARRY-05) is an init script
   that holds a v3 connection open before the app loads.
