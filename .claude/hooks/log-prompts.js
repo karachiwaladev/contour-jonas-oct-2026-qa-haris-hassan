@@ -15,6 +15,21 @@ const stateFile = path.join(logDir, ".prompt-log-state.json");
 // Context the harness injects next to the user's own words.
 const NOISE = /<(ide_opened_file|ide_selection|system-reminder)>[\s\S]*?<\/\1>/g;
 
+// The log is committed and pushed, so mask anything that looks like a credential
+// before it is written: known key shapes, and any value labelled as a key/token/secret.
+const SECRETS = [
+  /\b(?:api[_-]?key|apikey|sk|pk|rk)[_-][A-Za-z0-9_-]{16,}/gi,
+  /\b(?:gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|xox[abpr]-[A-Za-z0-9-]{10,})\b/g,
+  /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}/g,
+  /\b[A-Za-z0-9]{6,}_[A-Za-z0-9]{12,}_[A-Za-z0-9]{12,}\b/g,
+];
+const LABELLED = /((?:api[ _-]?key|token|secret|password|passwd|bearer)\b[^:=\n]{0,30}[:=]\s*)\S+/gi;
+
+function redact(text) {
+  for (const re of SECRETS) text = text.replace(re, "[REDACTED]");
+  return text.replace(LABELLED, "$1[REDACTED]");
+}
+
 function readStdin() {
   try { return JSON.parse(fs.readFileSync(0, "utf8") || "{}"); } catch { return {}; }
 }
@@ -27,7 +42,7 @@ function textOf(content) {
 }
 
 function clean(text) {
-  text = text.replace(NOISE, "").trim();
+  text = redact(text.replace(NOISE, "").trim());
   // Slash commands are stored as tags; log them as typed: "/loop 5m ...".
   const name = text.match(/<command-name>([\s\S]*?)<\/command-name>/);
   if (name) {

@@ -156,6 +156,15 @@ Read `references/build-flow.md` and follow it. In short:
 7. **Execute all test cases** against the finished build: the automated runner, plus manual cases and screenshots through the chrome-devtools MCP tools. Record ✅ or ❌ in `test-cases.md`. Fix failures and re-run the whole suite until everything passes.
 8. **Hand over for review:** commit the code, test results and screenshots, push, and open the PR with the test results, security summary and screenshots. Swap the label to `factory:awaiting-review`. Merging and closing happen only after a manual approval (step 3).
 
+### End-to-end tests against Jev
+
+Jev is the external system used for end-to-end tests. Its settings live in the repo's local `.env` file, which git ignores: `JEV_API_KEY` and `JEV_BASE_URL` (see `env.example`).
+
+- **Runners load the settings, not you.** Use `jevConfig()` from `todo/tests/lib/env.js`, which reads `.env` inside Node. The guardrails block reading `.env` with your own tools on purpose; don't work around that.
+- **Never expose the key.** Don't print or log it, put it in screenshots, test output, eval reports, ticket comments or PRs, or send it to any host but `JEV_BASE_URL`. Pass it only in the request header Jev expects.
+- **Skip, don't fail, when it's missing.** If `jevConfig()` returns null, mark the Jev cases `SKIP (no Jev settings)` and say so in the PR.
+- **Only ever create `.env` from `env.example`, and only the user fills it in.** If a key appears in a ticket, a prompt or a file that git tracks, stop and tell the user to rotate it.
+
 ### Branch and PR
 
 Every ticket that changes files gets its own branch and PR. A question changes nothing, so it gets neither.

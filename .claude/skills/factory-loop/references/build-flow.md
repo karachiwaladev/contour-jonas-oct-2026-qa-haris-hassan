@@ -160,9 +160,10 @@ python -m http.server 8765 --directory <project-folder>   # run in the backgroun
    - Check the outcome with `take_snapshot` or `evaluate_script`, which can read the DOM and the stored data.
    - `list_console_messages`: there must be no errors.
    - `take_screenshot` with `filePath` set to `<project>/screenshots/issue-<n>/NN-<what>.png`, one per key state.
-3. **Record the results** in `test-cases.md`: set each Result to ✅ or ❌, and add a line at the top: `Executed <date> on <commit sha> — <passed>/<total> passed`.
-4. **Any ❌:** fix the code, never the expected result. Then re-run the **entire** suite, not just the failing case, so a fix can't break something else. If the fix changed code meaningfully, re-scan the changes (step 6). Repeat until everything is ✅.
-5. Stop the HTTP server.
+3. **Jev end-to-end cases:** run them through the same runner, with settings from `jevConfig()` (see *End-to-end tests against Jev* in SKILL.md). Without Jev settings they're `SKIP`, not `PASS`. Check the runner's output, eval files and screenshots for the key before committing them.
+4. **Record the results** in `test-cases.md`: set each Result to ✅ or ❌, and add a line at the top: `Executed <date> on <commit sha> — <passed>/<total> passed`.
+5. **Any ❌:** fix the code, never the expected result. Then re-run the **entire** suite, not just the failing case, so a fix can't break something else. If the fix changed code meaningfully, re-scan the changes (step 6). Repeat until everything is ✅.
+6. Stop the HTTP server.
 
 **Fallback if the chrome-devtools MCP isn't connected:** drive Chrome over the DevTools Protocol from `run.js`, using headless Chrome with `--remote-debugging-port` and the `Runtime.evaluate` and `Page.captureScreenshot` commands. `--dump-dom` returns before async IndexedDB work finishes, so don't rely on it. Say in the PR that the fallback was used.
 
