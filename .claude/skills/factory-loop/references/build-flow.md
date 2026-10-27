@@ -30,7 +30,7 @@ Ask 1–4 questions in a single AskUserQuestion call. Each question gets 2–4 c
 
 ## 3. Plan and get approval
 
-Present a plan of roughly 15–35 lines:
+Present a short plan:
 
 - **Scope:** what will and won't be built, mapped to each sentence of the ticket.
 - **Data:** schema changes, and how existing stored data is migrated (never dropped).
@@ -119,7 +119,7 @@ Then act on what it reports:
 - **Correctness findings** (bugs, wrong behaviour, unhandled cases): fix every confirmed one on the branch. For each, add a **Regression** test case to `test-cases.md` and to the runner that would have caught it. If the user is in the session, show them the new cases for approval (4b); otherwise list them in the PR.
 - **Cleanups** (reuse, simplification, efficiency): apply them when they're clearly right and in scope. Skip the rest, and give a one-line reason for each in the PR.
 - If a finding is wrong, don't change the code. Note it as "not applied", with the reason.
-- Re-run the code review on the fixed branch until no confirmed correctness finding remains. Two rounds is typical.
+- Re-run the code review on the fixed branch until no confirmed correctness finding remains.
 
 Commit as `Ticket #N: address code review` and keep a summary for the PR: findings by kind, how many were fixed or skipped, and why.
 
