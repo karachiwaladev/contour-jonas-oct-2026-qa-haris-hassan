@@ -6,11 +6,13 @@ const { runPersona } = require("../lib");
 
 runPersona({
   dir: __dirname, prefix: "RITA",
-  unit({ check }) {
-    const R = require(path.join(__dirname, "..", "..", "..", "recurrence.js"));
-    const feb = R.nextDue("2027-01-31", "monthly", 31, "2027-01-01");
-    const mar = R.nextDue(feb, "monthly", 31, "2027-02-01");
-    check("RITA-04", "monthly month-end clamping", feb === "2027-02-28" && mar === "2027-03-31", `got ${feb}, ${mar}`);
+  unit({ kase }) {
+    return kase("RITA-04", "monthly month-end clamping", async () => {
+      const R = require(path.join(__dirname, "..", "..", "..", "recurrence.js"));
+      const feb = R.nextDue("2027-01-31", "monthly", 31, "2027-01-01");
+      const mar = R.nextDue(feb, "monthly", 31, "2027-02-01");
+      return [feb === "2027-02-28" && mar === "2027-03-31", `got ${feb}, ${mar}`];
+    });
   },
   async e2e({ ev, open, tag, kase }) {
     let r;

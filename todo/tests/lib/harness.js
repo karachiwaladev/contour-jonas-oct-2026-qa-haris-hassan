@@ -118,8 +118,9 @@ async function startBrowser({ width = 760, height = 900, shotsDir = process.env.
 // Write the app log collected during a run (a Map of entries keyed by
 // sessionId:seq) to <suiteDir>/eval/run-log.jsonl, evaluate it against the
 // suite's test-cases.md + expected-log.json, write eval-report.{md,json}, and
-// record the result as the "EVAL" check.
-function runEval({ collected, suiteDir, suite, check }) {
+// record the result as the "EVAL" check. `specText` overrides the spec read
+// from <suiteDir>/test-cases.md (e.g. one persona's rows of a shared file).
+function runEval({ collected, suiteDir, suite, check, specText }) {
   try {
     const E = require(path.join(TODO_DIR, "tests", "eval", "eval-logs.js"));
     const outDir = path.join(suiteDir, "eval");
@@ -129,7 +130,7 @@ function runEval({ collected, suiteDir, suite, check }) {
     fs.writeFileSync(path.join(outDir, "run-log.jsonl"), logText + (logText ? "\n" : ""));
     const res = E.evaluate({
       logText,
-      specText: fs.readFileSync(path.join(suiteDir, "test-cases.md"), "utf8"),
+      specText: specText !== undefined ? specText : fs.readFileSync(path.join(suiteDir, "test-cases.md"), "utf8"),
       expected: JSON.parse(fs.readFileSync(path.join(suiteDir, "expected-log.json"), "utf8")),
     });
     E.writeReports(res, outDir, { suite });

@@ -7,7 +7,8 @@
 //        --expected expected-log.json [--out <dir>]
 //
 // - spec: the test-case table (needs "ID" and "Auto" columns). Cases with Auto
-//   "unit" do nothing in the app, so they are listed as "unit", not judged.
+//   "unit" do nothing in the app, so they are listed as "unit", not judged;
+//   cases with Auto "manual" are run by hand, so they are listed as skipped.
 // - expected: { "TC-03": ["task.add", ...] }   every action must appear (with
 //   outcome ok) among the entries tagged TC-03. Syntax: action[:error][@actor],
 //   e.g. "task.add:error" matches a failed task.add, "task.add@user" one done
@@ -98,6 +99,7 @@ function evaluate({ logText, specText, expected = {} }) {
 
   const cases = spec.map(({ id, auto }) => {
     if (auto === "unit") return { id, auto, status: "unit", note: "unit: no app actions" };
+    if (auto === "manual") return { id, auto, status: "skipped", note: "manual: run by hand, not judged from the log" };
     const exp = expected[id];
     if (exp && typeof exp === "object" && !Array.isArray(exp)) {
       if (typeof exp.skip === "string") return { id, auto, status: "skipped", note: exp.skip };
