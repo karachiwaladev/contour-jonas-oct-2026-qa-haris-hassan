@@ -14,7 +14,7 @@ const path = require("path");
 const { TODO_DIR, sleep, createChecker, startBrowser, runEval } = require("../lib/harness");
 
 const HERE = __dirname;
-const { check, report } = createChecker();
+const { results, check, report } = createChecker();
 const args = process.argv.slice(2);
 const DEBOUNCE_WAIT = 700; // longer than the app's ~400 ms search-log debounce
 const ymd = (o) => { const d = new Date(); d.setDate(d.getDate() + o); const p = (n) => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); };
@@ -82,8 +82,7 @@ async function e2e() {
   const ran = new Set();
   const tc = async (id, name, fn) => {
     ran.add(id);
-    try { await fn(); } catch (e) { check(id, name, false, "error: " + String(e && e.message || e).split("
-")[0]); }
+    try { await fn(); } catch (e) { check(id, name, false, "error: " + String(e && e.message || e).split("\n")[0]); }
   };
   const searchEntries = (tc) => ev(`return (await T.entries(${JSON.stringify(tc)})).filter(e => e.action === "ui.filter_search").map(e => e.changes && e.changes.search);`);
 
@@ -462,18 +461,24 @@ async function e2e() {
     });
 
     // TC-30 phone width: search and Due, no horizontal scroll (console part checked at the end)
-    await send("Emulation.setDeviceMetricsOverride", { width: 375, height: 800, deviceScaleFactor: 1, mobile: true });
-    await fresh([["Buy milk", { tags: "shop", priority: "high", due: ymd(-1) }], ["Pay rent", { tags: "home" }]]);
-    await tag("TC-30");
-    await search("milk"); await settle();
-    await ev(`await T.filter("due-filter", "overdue");`);
-    const layout30 = await ev(`const de = document.documentElement; const vw = de.clientWidth;
-      const bar = document.querySelector(".filters"); const parts = bar ? [...bar.querySelectorAll("input, select, button")] : [];
-      return { vw, sw: de.scrollWidth, bodySw: document.body.scrollWidth, overflow: parts.filter(p => p.getBoundingClientRect().right > vw + 0.5).map(p => p.id || p.textContent),
-        n: parts.length, t: T.titles() };`);
-    await shot("01-phone-search-due.png");
-    await send("Emulation.setDeviceMetricsOverride", { width: 760, height: 900, deviceScaleFactor: 1, mobile: false });
-    await collect();
+    let layout30 = null;
+    await tc("TC-30", "no console errors, phone width", async () => {
+      await send("Emulation.setDeviceMetricsOverride", { width: 375, height: 800, deviceScaleFactor: 1, mobile: true });
+      try {
+        await fresh([["Buy milk", { tags: "shop", priority: "high", due: ymd(-1) }], ["Pay rent", { tags: "home" }]]);
+        await tag("TC-30");
+        await search("milk"); await settle();
+        await ev(`await T.filter("due-filter", "overdue");`);
+        layout30 = await ev(`const de = document.documentElement; const vw = de.clientWidth;
+          const bar = document.querySelector(".filters"); const parts = bar ? [...bar.querySelectorAll("input, select, button")] : [];
+          return { vw, sw: de.scrollWidth, bodySw: document.body.scrollWidth, overflow: parts.filter(p => p.getBoundingClientRect().right > vw + 0.5).map(p => p.id || p.textContent),
+            n: parts.length, t: T.titles() };`);
+        await shot("01-phone-search-due.png");
+      } finally {
+        await send("Emulation.setDeviceMetricsOverride", { width: 760, height: 900, deviceScaleFactor: 1, mobile: false });
+        await collect();
+      }
+    });
 
     // Screenshots for the PR (not test cases).
     if (process.env.SCREENSHOTS) {
@@ -488,7 +493,7 @@ async function e2e() {
     }
 
     const unexpected = consoleErrors.slice();
-    check("TC-30", "375 px: no horizontal scroll, filter bar wraps; no console errors in the run",
+    if (layout30) check("TC-30", "375 px: no horizontal scroll, filter bar wraps; no console errors in the run",
       layout30.sw <= layout30.vw && layout30.bodySw <= layout30.vw && layout30.overflow.length === 0 && layout30.n >= 5 &&
       JSON.stringify(layout30.t) === '["Buy milk"]' && unexpected.length === 0, JSON.stringify({ layout30, unexpected }));
   } catch (e) {
@@ -496,6 +501,11 @@ async function e2e() {
   } finally {
     await collect();
     await b.close();
+  }
+  // Every case gets a line, even if the run stopped before it.
+  for (let n = 1; n <= 30; n++) {
+    const id = "TC-" + String(n).padStart(2, "0");
+    if (!results.some((x) => x.id === id)) check(id, "case", false, ran.has(id) ? "no result" : "did not run");
   }
   runEval({ collected, suiteDir: HERE, suite: "issue-25", check });
 }
