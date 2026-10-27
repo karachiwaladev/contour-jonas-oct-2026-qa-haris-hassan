@@ -17,9 +17,13 @@ const empty = document.getElementById("empty");
 const count = document.getElementById("count");
 const statusButtons = [...document.querySelectorAll("#status-filter button")];
 const tagFilter = document.getElementById("tag-filter");
+const searchInput = document.getElementById("search-filter");
+const dueFilter = document.getElementById("due-filter");
 
 // Filters reset on reload by design (ticket #5 scope).
-const filters = { status: "all", tag: "", priority: "" };
+// `search` is the parsed query key ("" = none) and `needle` its matcher (see parseSearch);
+// `due` is ""|overdue|today|week|none.
+const filters = { status: "all", tag: "", priority: "", due: "", search: "", needle: null };
 
 // The open task being edited inline (at most one), or null.
 let editingId = null;
@@ -46,7 +50,7 @@ function clearError(source) {
 // The action log is best-effort: if logger.js didn't load, use a no-op stand-in
 // so the app itself keeps working.
 const Log = typeof TodoLog !== "undefined" ? TodoLog : {
-  log() {}, claimUserToken: () => null, recent: async () => [], count: async () => 0,
+  log() {}, setPending() {}, clearPending() {}, writePending() {}, writePendingNow() {}, claimUserToken: () => null, recent: async () => [], count: async () => 0,
   exportJSONL: async () => "", clear: async () => {}, flush: async () => {},
 };
 
@@ -54,6 +58,35 @@ const Log = typeof TodoLog !== "undefined" ? TodoLog : {
 // is claimed once and lives only in this closure, so scripts calling TodoDB
 // directly can't pass it (they are logged as "api").
 const USER = Log.claimUserToken();
+
+// Search is logged only as "set" or "cleared", never the query: "set" once
+// typing pauses (SEARCH_LOG_DELAY) if the query differs from the last one
+// logged (so refining it logs another "set"), "cleared" at once. TodoLog holds
+// the pending "set" and writes it before any later entry, so the log keeps the
+// order things happened in.
+const SEARCH_LOG_DELAY = 400;
+let searchLogged = ""; // the query of the last search entry written
+
+function logSearchChange() {
+  const q = filters.search;
+  if (!q) {
+    Log.clearPending();
+    if (searchLogged) {
+      searchLogged = "";
+      Log.log({ action: "ui.filter_search", actor: USER, changes: { search: "cleared" } });
+    }
+  } else if (q === searchLogged) {
+    Log.clearPending(); // back to what is already logged
+  } else {
+    Log.setPending({ action: "ui.filter_search", actor: USER, changes: { search: "set" } }, SEARCH_LOG_DELAY,
+      () => { searchLogged = q; });
+  }
+}
+
+// Every other entry this page logs goes through here (as the user).
+function logUser(entry) {
+  Log.log({ ...entry, actor: USER });
+}
 
 // Run a storage action from a click, then redraw from what is actually stored.
 // A failure is shown on the page (e.g. "close other tabs" during an upgrade),
@@ -68,7 +101,7 @@ async function act(what, fn, action, taskId = null) {
   } catch (err) {
     ok = false;
     showError(what, err, "action");
-    if (action && !(err && err.logged)) Log.log({ action, actor: USER, taskId, outcome: "error", error: err });
+    if (action && !(err && err.logged)) logUser({ action, taskId, outcome: "error", error: err });
   }
   await render();
   return ok;
@@ -294,7 +327,7 @@ function taskItem(task) {
     chip.addEventListener("click", (e) => {
       e.preventDefault(); // don't toggle the checkbox through the label
       filters.tag = tag;
-      Log.log({ action: "ui.filter_tag", actor: USER, changes: { tag: "set" } }); // never the tag text
+      logUser({ action: "ui.filter_tag", changes: { tag: "set" } }); // never the tag text
       render();
     });
     meta.append(chip);
@@ -355,44 +388,115 @@ function renderTagOptions(tasks) {
   tagFilter.disabled = counts.size === 0;
 }
 
-function matches(task) {
+// Due filter. Overdue follows the red badge: open tasks due before today.
+// "week" is today through today + 6 (ctx.weekEnd).
+function matchesDue(task, ctx) {
+  if (!filters.due) return true;
+  const dated = Recurrence.isValidDate(task.due);
+  if (filters.due === "none") return !dated;
+  if (!dated) return false;
+  if (filters.due === "overdue") return !task.done && task.due < ctx.today;
+  if (filters.due === "today") return task.due === ctx.today;
+  if (filters.due === "week") return task.due >= ctx.today && task.due <= ctx.weekEnd;
+  return true;
+}
+
+// Parse the search box once: trimmed; a leading "#" (then trimmed again)
+// searches tag names only. `key` identifies the search ("" = none, also for a
+// bare "#"); `needle` is what matchesSearch uses. Matching is a plain,
+// case-insensitive substring, never a RegExp from user text, and uses
+// toLowerCase() like TodoDB.normalizeTags, so the browser's locale doesn't
+// change what matches.
+function parseSearch(raw) {
+  const q = String(raw).trim();
+  const tagsOnly = q.startsWith("#");
+  const text = tagsOnly ? q.slice(1).trim() : q;
+  if (!text) return { key: "", needle: null };
+  return { key: tagsOnly ? `#${text}` : text, needle: { tagsOnly, text: text.toLowerCase() } };
+}
+
+function matchesSearch(task, needle) {
+  if (!needle) return true;
+  const inTags = (task.tags || []).some((t) => String(t).toLowerCase().includes(needle.text));
+  if (needle.tagsOnly) return inTags;
+  return inTags || String(task.title).toLowerCase().includes(needle.text);
+}
+
+function matches(task, ctx) {
   if (filters.status === "active" && task.done) return false;
   if (filters.status === "completed" && !task.done) return false;
   if (filters.tag && !(task.tags || []).includes(filters.tag)) return false;
   if (filters.priority && task.priority !== filters.priority) return false;
-  return true;
+  if (!matchesDue(task, ctx)) return false;
+  return matchesSearch(task, ctx.needle);
 }
 
 // Each render reads asynchronously; only the newest one may draw, so a slow,
 // older read can never overwrite a newer list.
 let renderSeq = 0;
+let loading = 0;          // reads in flight
+let lastTasks = null;     // the last list read from storage
+let listRequested = false; // a { reload: false } redraw is waiting for a read in flight
 
-async function render() {
+// Redraw. By default re-reads storage and redraws everything. { reload: false }
+// (search and Due changes) re-filters the last list read and redraws only the
+// list, counter and empty message; while a read is in flight it waits for that
+// read, which honours it even if the read fails or is superseded.
+async function render({ reload = true } = {}) {
+  if (!reload && lastTasks) {
+    if (loading) listRequested = true;
+    else drawList(lastTasks);
+    return;
+  }
   const seq = ++renderSeq;
-  let tasks;
+  let tasks, failed = null;
+  loading++;
   try {
     tasks = await TodoDB.all();
   } catch (err) {
-    if (seq === renderSeq) showError("load your tasks", err, "load");
+    failed = err;
+  } finally {
+    loading--;
+  }
+  if (seq !== renderSeq) {
+    // Superseded: the newer read draws, unless it has already finished.
+    if (listRequested && !loading && lastTasks) { listRequested = false; drawList(lastTasks); }
     return;
   }
-  if (seq !== renderSeq) return;
+  listRequested = false;
+  if (failed) {
+    showError("load your tasks", failed, "load");
+    if (lastTasks) drawList(lastTasks); // keep the current filters applied to what we have
+    return;
+  }
+  lastTasks = tasks;
   clearError("load");
+  draw(tasks);
+}
+
+function draw(tasks) {
   renderTagOptions(tasks);
   for (const b of statusButtons) b.setAttribute("aria-pressed", String(b.dataset.status === filters.status));
+  drawList(tasks);
+  if (activity.open) renderActivity();
+}
 
-  const shown = tasks.filter(matches).sort(compareTasks);
+// The task list, counter and empty message for the current filters.
+function drawList(tasks) {
+  const todayStr = today();
+  const ctx = { today: todayStr, weekEnd: Recurrence.addDays(todayStr, 6), needle: filters.needle };
+  const shown = tasks.filter((task) => matches(task, ctx)).sort(compareTasks);
   list.replaceChildren(...shown.map(taskItem));
 
-  const filtered = filters.status !== "all" || filters.tag !== "" || filters.priority !== "";
+  const filtered = filters.status !== "all" || filters.tag !== "" || filters.priority !== "" ||
+    filters.due !== "" || filters.search !== "";
   empty.hidden = shown.length > 0;
   empty.textContent = tasks.length === 0 ? "No tasks yet. Add one above." : "No tasks match this filter.";
 
-  const open = tasks.filter((t) => !t.done).length;
+  const open = tasks.filter((task) => !task.done).length;
   count.textContent = tasks.length
     ? `${open} of ${tasks.length} left` + (filtered ? ` · showing ${shown.length}` : "")
     : "";
-  if (activity.open) renderActivity();
 }
 
 // ---- Activity log panel ------------------------------------------------------
@@ -459,7 +563,7 @@ document.getElementById("log-export").addEventListener("click", async () => {
     link.download = `todo-log-${today()}.jsonl`;
     link.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
-    Log.log({ action: "log.export", actor: USER, changes: { entries: text ? text.split("\n").length : 0 } });
+    logUser({ action: "log.export", changes: { entries: text ? text.split("\n").length : 0 } });
   } catch (err) {
     showError("export the activity log", err, "action");
   }
@@ -502,14 +606,14 @@ form.addEventListener("submit", async (e) => {
 
 priorityFilter.addEventListener("change", () => {
   filters.priority = priorityFilter.value;
-  Log.log({ action: "ui.filter_priority", actor: USER, changes: { priority: filters.priority || "all" } });
+  logUser({ action: "ui.filter_priority", changes: { priority: filters.priority || "all" } });
   render();
 });
 
 for (const b of statusButtons) {
   b.addEventListener("click", () => {
     filters.status = b.dataset.status;
-    Log.log({ action: "ui.filter_status", actor: USER, changes: { status: filters.status } });
+    logUser({ action: "ui.filter_status", changes: { status: filters.status } });
     render();
   });
 }
@@ -517,9 +621,47 @@ for (const b of statusButtons) {
 tagFilter.addEventListener("change", () => {
   filters.tag = tagFilter.value;
   // Which tag is user text, so only whether a tag filter is on is logged.
-  Log.log({ action: "ui.filter_tag", actor: USER, changes: { tag: filters.tag ? "set" : "cleared" } });
+  logUser({ action: "ui.filter_tag", changes: { tag: filters.tag ? "set" : "cleared" } });
   render();
 });
+
+dueFilter.addEventListener("change", () => {
+  filters.due = dueFilter.value;
+  logUser({ action: "ui.filter_due", changes: { due: filters.due || "all" } });
+  render({ reload: false });
+});
+
+// Search filters as you type (see logSearchChange for how it is logged).
+// Clearing, however it happens (Escape, the box's clear button, deleting the
+// text), logs at once.
+function onSearchChange() {
+  const { key, needle } = parseSearch(searchInput.value);
+  if (key === filters.search) return;
+  filters.search = key;
+  filters.needle = needle;
+  render({ reload: false });
+  logSearchChange();
+}
+
+searchInput.addEventListener("input", onSearchChange);
+searchInput.addEventListener("search", onSearchChange); // the native clear button (and Enter)
+
+searchInput.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || !searchInput.value) return;
+  e.preventDefault();
+  searchInput.value = "";
+  onSearchChange();
+});
+
+// A pending search entry is written when the page is hidden, and on unload
+// synchronously if possible (a queued write would be dropped there).
+window.addEventListener("pagehide", () => Log.writePendingNow());
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") Log.writePending(); });
+
+// Filters reset on reload: don't let the browser restore old control values.
+searchInput.value = "";
+dueFilter.value = "";
+priorityFilter.value = "";
 
 render();
 

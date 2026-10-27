@@ -53,7 +53,7 @@ form { display: flex; flex-direction: column; gap: 8px; }
 .field.grow { flex: 1; min-width: 180px; }
 .field.grow input { flex: 1; min-width: 0; }
 
-input[type="text"], input[type="date"], select {
+input[type="text"], input[type="date"], input[type="search"], select {
   padding: 10px 12px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -203,6 +203,10 @@ ul { list-style: none; margin: 12px 0 0; padding: 0; }
 .priority.low { color: var(--muted); background: transparent; border: 1px solid var(--border); }
 
 .filter-selects { display: flex; gap: 8px; flex-wrap: wrap; }
+.filter-selects select { max-width: 100%; min-width: 0; }
+
+/* Search box (ticket #25): a full-width row above the other filters */
+.filters .search { flex: 1 1 100%; min-width: 0; width: 100%; padding: 8px 12px; font-size: 15px; }
 
 /* Task row actions and the inline edit form */
 .task-actions { display: flex; gap: 6px; flex-shrink: 0; }

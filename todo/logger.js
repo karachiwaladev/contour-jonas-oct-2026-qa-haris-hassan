@@ -35,6 +35,7 @@ const TodoLog = (() => {
   let userToken = null;
 
   let dbPromise = null;
+  let conn = null; // the open connection once known, for writePendingNow() during page unload
   let chain = Promise.resolve(); // serialises writes; flush() waits for it
 
   // Resolves with the connection, or null if the log can't be opened right
@@ -54,7 +55,8 @@ const TodoLog = (() => {
       req.onsuccess = () => {
         const db = req.result;
         if (gaveUp) { db.close(); return; } // a late open after a block: don't leave it dangling
-        db.onversionchange = () => { db.close(); if (dbPromise === pending) dbPromise = null; };
+        db.onversionchange = () => { db.close(); if (conn === db) conn = null; if (dbPromise === pending) dbPromise = null; };
+        conn = db;
         resolve(db);
       };
       req.onerror = (e) => {
@@ -98,8 +100,10 @@ const TodoLog = (() => {
   }
 
   // Queue a write. Failures are swallowed: logging must never break the app.
+  let queued = 0; // writes queued or running
   function enqueue(job) {
-    chain = chain.then(job).catch(() => {});
+    queued++;
+    chain = chain.then(job).catch(() => {}).then(() => { queued--; });
     return chain;
   }
 
@@ -127,8 +131,8 @@ const TodoLog = (() => {
     try { return changes && typeof changes === "object" ? JSON.parse(JSON.stringify(changes)) : {}; } catch { return {}; }
   }
 
-  function log({ action, actor = "api", taskId = null, changes = {}, outcome = "ok", error } = {}) {
-    if (typeof action !== "string" || !ACTION_RE.test(action)) return;
+  function makeEntry({ action, actor = "api", taskId = null, changes = {}, outcome = "ok", error } = {}) {
+    if (typeof action !== "string" || !ACTION_RE.test(action)) return null;
     const entry = {
       ts: new Date().toISOString(),
       sessionId,
@@ -142,18 +146,79 @@ const TodoLog = (() => {
     };
     if (error !== undefined) entry.error = text(error && error.message ? error.message : error, 200);
     if (testCase) entry.testCase = testCase;
+    return entry;
+  }
+
+  // One coalesced entry waiting to be written (the page's search box logs
+  // once typing pauses). It is written after `delay` ms, or earlier, in order,
+  // before any other entry; clear() drops it. The entry gets its ts and seq
+  // when it is written. `onWritten` runs when it is.
+  let pending = null; // { fields, timer, onWritten }
+
+  function dropPending() {
+    if (pending) clearTimeout(pending.timer);
+    pending = null;
+  }
+
+  // Take the pending entry (if any) and build it; null if none.
+  function takePending() {
+    if (!pending) return null;
+    const { fields, onWritten } = pending;
+    dropPending();
+    const entry = makeEntry(fields);
+    if (entry && typeof onWritten === "function") { try { onWritten(); } catch {} }
+    return entry;
+  }
+
+  function writePending() {
+    const entry = takePending();
+    if (entry) enqueue(() => addAndTrim(entry));
+  }
+
+  function setPending(fields, delay = 400, onWritten) {
+    dropPending();
+    pending = { fields, onWritten, timer: setTimeout(writePending, delay) };
+  }
+
+  // For page unload (pagehide), where a queued write would be dropped: start
+  // the write synchronously, but only when nothing else is queued, so the log
+  // stays in order; otherwise queue it as usual (best-effort). The log is
+  // trimmed on the next ordinary write.
+  function writePendingNow() {
+    if (!pending) return;
+    if (!conn || queued > 0) { writePending(); return; }
+    const entry = takePending();
+    if (!entry) return;
+    try {
+      const t = conn.transaction(STORE, "readwrite");
+      t.objectStore(STORE).add(entry);
+      t.onerror = (e) => { if (e && e.preventDefault) e.preventDefault(); };
+      if (t.commit) t.commit();
+    } catch {
+      enqueue(() => addAndTrim(entry)); // closed under us: fall back to the queue
+    }
+  }
+
+  function log(fields) {
+    const entry = makeEntry(fields);
+    if (!entry) return;
+    writePending(); // a pending entry happened first
     enqueue(() => addAndTrim(entry));
   }
 
   return {
     log,
+    setPending,
+    clearPending: dropPending,
+    writePending,
+    writePendingNow,
     // For the page's own UI only: the first caller gets the token, later callers null.
     claimUserToken() {
       if (userToken !== null) return null;
       userToken = Object.freeze({});
       return userToken;
     },
-    flush: () => chain,
+    flush: () => { writePending(); return chain; },
     async all() {
       await chain;
       return (await tx("readonly", (s) => s.getAll())) || [];
@@ -178,10 +243,12 @@ const TodoLog = (() => {
       return (await tx("readonly", (s) => s.count())) || 0;
     },
     async exportJSONL() {
+      writePending();
       return (await this.all()).map((e) => JSON.stringify(e)).join("\n");
     },
     // Empty the log. Unless silent, the clear itself is recorded.
     clear({ actor = "api", silent = false } = {}) {
+      dropPending(); // cleared along with everything else
       enqueue(() => tx("readwrite", (s) => s.clear()));
       if (!silent) log({ action: "log.clear", actor });
       return chain;
