@@ -1,6 +1,6 @@
 # Todo app
 
-A simple todo app. You can create a task, mark it done and delete it (Ticket #3, issue #4). Tasks can also have an optional due date and tags, and you can filter by status and by tag (Ticket #4, issue #5). Tasks can **repeat** daily, weekly or monthly (Ticket #5, issue #7). Every action is recorded in an **activity log** that distinguishes a person from scripts and AI agents, and test runs are checked against it by an **eval** (issue #14). Tasks have a **priority** (High, Medium or Low), can be filtered and sorted by it, and open tasks can be **edited inline** (issue #15). Tasks are stored in the browser with **IndexedDB**: there is no server or build step, and nothing else to install.
+A simple todo app. You can create a task, mark it done and delete it (Ticket #3, issue #4). Tasks can also have an optional due date and tags, and you can filter by status and by tag (Ticket #4, issue #5). Tasks can **repeat** daily, weekly or monthly (Ticket #5, issue #7). Every action is recorded in an **activity log** that distinguishes a person from scripts and AI agents, and test runs are checked against it by an **eval** (issue #14). Tasks have a **priority** (High, Medium or Low), can be filtered and sorted by it, and open tasks can be **edited inline** (issue #15). A **search box** filters tasks by title or tag as you type, and a **Due** filter shows overdue, due-today, next-7-days or undated tasks (issue #25). Tasks are stored in the browser with **IndexedDB**: there is no server or build step, and nothing else to install.
 
 ## Run
 
@@ -14,7 +14,7 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 | `logger.js` | `TodoLog`: the action log in its own IndexedDB database `todo-logs` (`log`, `all`, `recent`, `count`, `exportJSONL`, `clear`, `setTestCase`, `flush`, `claimUserToken`). It keeps the last 1,000 entries and is best-effort, so it never breaks the app. |
 | `recurrence.js` | `Recurrence`: pure date math (`nextDue`, `normalizeRepeat`, `isValidDate`, `today`). It also loads in Node for unit tests. |
 | `db.js` | `TodoDB`: an IndexedDB wrapper (`all`, `add(title, {due, tags, repeat})`, `setDone`, `update(id, fields)`, `stopRepeating`, `remove`, `normalizeTags`). Changes pass their last argument through to the log as the actor. It cleans up stored records when reading them, and logs each change after it commits. |
-| `app.js` | UI: rendering, the add form, the status, tag and priority filters, the inline edit form, tag chips, and the priority, due and repeat badges |
+| `app.js` | UI: rendering, the add form, the search box, the status, tag, priority and due filters, the inline edit form, tag chips, and the priority, due and repeat badges |
 | `styles.css` | Styles, with light and dark themes |
 | `tests/issue-N/` | Per ticket: test cases (`test-cases.md`), an automated runner (`run.js`), the actions each case must log (`expected-log.json`), and the latest eval (`eval/`) |
 | `tests/lib/harness.js` | Shared test harness: serves the app and drives headless Chrome over the DevTools Protocol |
@@ -42,12 +42,14 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
   - An edited task is marked `edited`, so undoing its parent never deletes it; the parent becomes a one-off instead.
 - The database open handles `onblocked` (another tab holds an older version: fail with a clear message, and close any late connection) and `onversionchange` (close and forget this connection so the next call reopens).
 - Storage failures are shown in the `#error` box (`role=alert`) as well as logged. `act()` wraps every storage action, and `render()` reports load failures there.
-- Filters (status AND one tag AND one priority) live in memory and reset on reload.
+- Filters (status AND one tag AND one priority AND due AND search) live in memory and reset on reload.
+- **Search:** the query is trimmed (blank = no search) and matched as a case-insensitive substring (`toLocaleLowerCase` + `includes`, never a RegExp) of the title or any tag; a leading `#` searches tag names only. Escape or the box's ✕ clears it.
+- **Due filter:** Overdue = open tasks due before today (like the red badge), Due today, Next 7 days (today to today + 6), No due date.
 - **Stored data is untrusted.** `TodoDB` coerces every field on read: the repeat value is checked against a fixed list, invalid dates become `null`, tags are cleaned up, `createdAt` becomes a number, `anchorDay` becomes 1–31 or `null`, and the ids (`nextId`/`spawnedFrom`) become integers or `null`.
 - **Action log:**
   - Each entry is `{ id, ts, sessionId, seq, actor: "user"|"api", automated, action, taskId, changes, outcome, error?, testCase? }`.
-  - The actions are `task.add`, `task.complete`, `task.spawn`, `task.reopen`, `task.copy_removed`, `task.become_oneoff`, `task.stop_repeating`, `task.delete`, `task.edit`, `ui.filter_status`, `ui.filter_tag`, `ui.filter_priority`, `log.export`, `log.clear` and `test.case_start`.
-  - **No titles or tag text are ever logged**; a tag filter is recorded only as `set` or `cleared`.
+  - The actions are `task.add`, `task.complete`, `task.spawn`, `task.reopen`, `task.copy_removed`, `task.become_oneoff`, `task.stop_repeating`, `task.delete`, `task.edit`, `ui.filter_status`, `ui.filter_tag`, `ui.filter_priority`, `ui.filter_search`, `ui.filter_due`, `log.export`, `log.clear` and `test.case_start`.
+  - **No titles, tag text or search text are ever logged**; a tag filter or search is recorded only as `set` or `cleared`. A search is logged about 400 ms after typing stops, and only if the query changed.
   - **Limits:** code driving the page's own buttons, such as an AI using the browser, is logged as `user`; `automated: true` marks a browser under automation. The log is client-side and best-effort, so it isn't tamper-proof against code running in the page.
   - **Attribution:** an entry is `user` only when it carries the private token from `TodoLog.claimUserToken()`, which `app.js` claims once and keeps in its closure. It passes the token to `TodoDB` methods and `TodoLog.log`. Every other caller, even one passing `{ actor: "user" }`, is logged as `api`.
   - **Eval expectations** use the syntax `action[:error][@actor]`, e.g. `task.add@user` or `task.delete:error@user`. Only successful entries satisfy a plain action, and a failed action that a case doesn't expect makes it fail (`unexpected-error`).
@@ -56,6 +58,8 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 - To change the data shape, bump `DB_VERSION` and migrate existing records in `onupgradeneeded`. Never drop data (see the v1/v2 → v3 migration).
 
 ## Tests
+
+`node todo/tests/issue-25/run.js` runs the search and due-filter suite (TC-01–TC-31). Its TC-31 runs the issue-15 suite, which runs issue-14 and issue-7, so one command checks everything (`--skip-regression` skips it).
 
 `node todo/tests/issue-15/run.js` runs the task-priority suite (TC-01–TC-35). Its TC-24 runs the issue-14 suite, which in turn runs issue-7, so one command checks everything.
 
@@ -81,3 +85,5 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 13. Add a **Daily** task due today, then tick it. It stays under Completed, and a new copy appears "Due <tomorrow>" with a 🔁 Daily badge.
 14. Untick the completed one. The new copy disappears again.
 15. **Stop repeating** removes the 🔁 badge; ticking the task then creates no copy.
+16. Typing in the search box narrows the list on each key, by title or tag, in any case; `#work` matches only tags. Escape or ✕ shows everything again.
+17. **Due** = Overdue, Due today, Next 7 days or No due date narrows the list and combines with the other filters; the counter adds "showing N".
