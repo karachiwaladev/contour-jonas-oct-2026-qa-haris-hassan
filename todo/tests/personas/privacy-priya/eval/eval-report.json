@@ -1,0 +1,77 @@
+{
+  "suite": "personas/privacy-priya",
+  "generatedAt": "2026-10-27T07:54:39.166Z",
+  "ok": true,
+  "summary": {
+    "cases": 5,
+    "pass": 5,
+    "unit": 0,
+    "skipped": 0,
+    "notExecuted": 0,
+    "incomplete": 0,
+    "unexpectedError": 0,
+    "entries": 24,
+    "malformed": 0,
+    "unknown": 0
+  },
+  "cases": [
+    {
+      "id": "PRIYA-01",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "PRIYA-02",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start",
+        "ui.filter_tag"
+      ]
+    },
+    {
+      "id": "PRIYA-03",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "PRIYA-04",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "log.export",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "PRIYA-05",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "log.clear",
+        "test.case_start"
+      ]
+    }
+  ],
+  "malformed": [],
+  "unknown": []
+}

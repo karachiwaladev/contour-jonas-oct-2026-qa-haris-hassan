@@ -1,0 +1,100 @@
+{
+  "suite": "personas/routine-rita",
+  "generatedAt": "2026-10-27T07:54:00.944Z",
+  "ok": true,
+  "summary": {
+    "cases": 7,
+    "pass": 6,
+    "unit": 1,
+    "skipped": 0,
+    "notExecuted": 0,
+    "incomplete": 0,
+    "unexpectedError": 0,
+    "entries": 36,
+    "malformed": 0,
+    "unknown": 0
+  },
+  "cases": [
+    {
+      "id": "RITA-01",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.complete",
+        "task.spawn",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "RITA-02",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "RITA-03",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.spawn",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "RITA-04",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "RITA-05",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.complete",
+        "task.stop_repeating",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "RITA-06",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.copy_removed",
+        "task.reopen",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "RITA-07",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.become_oneoff",
+        "task.complete",
+        "task.reopen",
+        "test.case_start"
+      ]
+    }
+  ],
+  "malformed": [],
+  "unknown": []
+}

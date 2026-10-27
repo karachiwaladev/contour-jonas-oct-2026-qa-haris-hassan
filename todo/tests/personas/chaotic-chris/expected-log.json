@@ -1,0 +1,8 @@
+{
+  "CHRIS-01": ["task.add@user"],
+  "CHRIS-02": ["task.edit:error@user"],
+  "CHRIS-03": ["task.edit:error@user"],
+  "CHRIS-04": [],
+  "CHRIS-05": ["task.add@user"],
+  "CHRIS-06": []
+}

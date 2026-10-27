@@ -1,0 +1,99 @@
+{
+  "suite": "personas/organized-omar",
+  "generatedAt": "2026-10-27T07:53:53.624Z",
+  "ok": true,
+  "summary": {
+    "cases": 7,
+    "pass": 7,
+    "unit": 0,
+    "skipped": 0,
+    "notExecuted": 0,
+    "incomplete": 0,
+    "unexpectedError": 0,
+    "entries": 60,
+    "malformed": 0,
+    "unknown": 0
+  },
+  "cases": [
+    {
+      "id": "OMAR-01",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "OMAR-02",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "OMAR-03",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start",
+        "ui.filter_priority",
+        "ui.filter_status",
+        "ui.filter_tag"
+      ]
+    },
+    {
+      "id": "OMAR-04",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "OMAR-05",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start",
+        "ui.filter_tag"
+      ]
+    },
+    {
+      "id": "OMAR-06",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "OMAR-07",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "test.case_start"
+      ]
+    }
+  ],
+  "malformed": [],
+  "unknown": []
+}

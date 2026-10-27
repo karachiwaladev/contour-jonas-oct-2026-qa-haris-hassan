@@ -1,0 +1,9 @@
+{
+  "OMAR-01": ["task.add@user"],
+  "OMAR-02": [],
+  "OMAR-03": ["ui.filter_status@user", "ui.filter_priority@user", "ui.filter_tag@user"],
+  "OMAR-04": ["task.add@user"],
+  "OMAR-05": ["ui.filter_tag@user"],
+  "OMAR-06": [],
+  "OMAR-07": ["task.delete@user"]
+}

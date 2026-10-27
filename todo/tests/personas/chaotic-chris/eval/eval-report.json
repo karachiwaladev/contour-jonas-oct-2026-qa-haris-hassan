@@ -1,0 +1,87 @@
+{
+  "suite": "personas/chaotic-chris",
+  "generatedAt": "2026-10-27T07:54:18.866Z",
+  "ok": true,
+  "summary": {
+    "cases": 6,
+    "pass": 6,
+    "unit": 0,
+    "skipped": 0,
+    "notExecuted": 0,
+    "incomplete": 0,
+    "unexpectedError": 0,
+    "entries": 20,
+    "malformed": 0,
+    "unknown": 0
+  },
+  "cases": [
+    {
+      "id": "CHRIS-01",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "CHRIS-02",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.complete",
+        "task.edit:error",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "CHRIS-03",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "task.edit:error",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "CHRIS-04",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "CHRIS-05",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "CHRIS-06",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    }
+  ],
+  "malformed": [],
+  "unknown": []
+}

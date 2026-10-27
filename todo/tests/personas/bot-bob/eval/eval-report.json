@@ -1,0 +1,84 @@
+{
+  "suite": "personas/bot-bob",
+  "generatedAt": "2026-10-27T07:54:42.864Z",
+  "ok": true,
+  "summary": {
+    "cases": 6,
+    "pass": 5,
+    "unit": 1,
+    "skipped": 0,
+    "notExecuted": 0,
+    "incomplete": 0,
+    "unexpectedError": 0,
+    "entries": 23,
+    "malformed": 0,
+    "unknown": 0
+  },
+  "cases": [
+    {
+      "id": "BOB-01",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "BOB-02",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "BOB-03",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.edit:error",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "BOB-04",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "BOB-05",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "BOB-06",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.complete",
+        "task.spawn",
+        "test.case_start"
+      ]
+    }
+  ],
+  "malformed": [],
+  "unknown": []
+}
