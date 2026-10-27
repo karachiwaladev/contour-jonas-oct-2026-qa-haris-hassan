@@ -60,9 +60,9 @@ runPersona({
     await kase("VERA-04", "add a task into a large list: time budget", async () => {
       await tag("VERA-04");
       r = await ev(`const before = T.count(); const t0 = performance.now();
-        const shown = T.waitFor("#task-list", () => T.items("Vera new task").length > 0);
-        document.getElementById("task-title").value = "Vera new task"; document.getElementById("new-task").requestSubmit();
-        await shown; await T.frame(); const ms = Math.round(performance.now() - t0); await TodoLog.flush();
+        await T.waitFor("#task-list", () => T.items("Vera new task").length > 0, () => {
+          document.getElementById("task-title").value = "Vera new task"; document.getElementById("new-task").requestSubmit(); });
+        await T.frame(); const ms = Math.round(performance.now() - t0); await TodoLog.flush();
         return { ms, before, after: T.count() };`);
       const [ob, tb] = (r.before.match(/\d+/g) || []).map(Number), [oa, ta] = (r.after.match(/\d+/g) || []).map(Number);
       check("VERA-04", "add a task into a large list: correctness", oa === ob + 1 && ta === tb + 1 && ta === 2001,

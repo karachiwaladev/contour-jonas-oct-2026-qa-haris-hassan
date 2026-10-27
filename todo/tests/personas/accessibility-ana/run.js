@@ -22,10 +22,14 @@ const CONTRAST = `
   };`;
 
 // Every element must reach AA (4.5:1). Details list each measured ratio, the failing ones first.
+// A missing element or an unmeasurable ratio is a broken test, so it is a strict FAIL, never a finding.
 const AA = 4.5;
 const judge = (r) => {
-  const fails = Object.entries(r).filter(([, v]) => typeof v !== "number" || v < AA);
+  const measured = (v) => typeof v === "number" && Number.isFinite(v);
   const all = Object.entries(r).map(([k, v]) => `${k} ${v}:1`).join(", ");
+  const broken = Object.entries(r).filter(([, v]) => !measured(v)).map(([k]) => k);
+  if (broken.length) return [false, `could not measure: ${broken.join(", ")}; measured: ${all}`, { strict: true }];
+  const fails = Object.entries(r).filter(([, v]) => v < AA);
   return [fails.length === 0,
     (fails.length ? `below ${AA}:1: ${fails.map(([k, v]) => `${k} ${v}:1`).join(", ")}; ` : `all ≥ ${AA}:1; `) + `measured: ${all}`,
     { show: true }];

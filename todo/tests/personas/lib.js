@@ -79,25 +79,35 @@ const pageHelper = (tc) => `window.T = {
   items: (t) => [...document.querySelectorAll("#task-list .task")].filter(l => (l.querySelector(".title") || {}).textContent === t),
   item: (id) => document.querySelector('#task-list .task[data-id="' + id + '"]'),
   count: () => document.getElementById("count").textContent,
-  // Resolve once cond() is true, checked on every child-list change under \`sel\`; reject after ms.
-  waitFor(sel, cond, ms = ${WAIT_MS}) {
-    const el = document.querySelector(sel);
-    return new Promise((res, rej) => {
-      if (cond()) return res();
-      const o = new MutationObserver(() => { if (cond()) { o.disconnect(); clearTimeout(t); res(); } });
-      const t = setTimeout(() => { o.disconnect(); rej(new Error("timed out after " + ms / 1000 + " s waiting for " + sel)); }, ms);
-      o.observe(el, { childList: true, subtree: true });
+  // Watch \`sel\`'s child list until cond() is true (cond null: the first change);
+  // gives up after ms. Returns { done, cancel }: cancel() or settling always
+  // disconnects the observer and clears the timer, and \`done\` has a handler
+  // attached, so a wait that is abandoned never rejects later unhandled.
+  watch(sel, cond, ms = ${WAIT_MS}, subtree = false) {
+    const el = document.querySelector(sel); let o = null, t = null, cancel = () => {};
+    const done = new Promise((res, rej) => {
+      const finish = (err) => { if (o) o.disconnect(); clearTimeout(t); if (err) rej(err); else res(); };
+      cancel = () => finish(new Error("wait for " + sel + " cancelled"));
+      if (!el) return finish(new Error("no element " + sel));
+      if (cond && cond()) return finish();
+      o = new MutationObserver(() => { if (!cond || cond()) finish(); });
+      t = setTimeout(() => finish(new Error("timed out after " + ms / 1000 + " s waiting for " + sel + (cond ? "" : " to change"))), ms);
+      o.observe(el, { childList: true, subtree });
     });
+    done.catch(() => {});
+    return { done, cancel };
+  },
+  // Run act(), then resolve once cond() is true under \`sel\`.
+  async waitFor(sel, cond, act = () => {}, ms = ${WAIT_MS}) {
+    const w = T.watch(sel, cond, ms, true);
+    try { await act(); } catch (e) { w.cancel(); throw e; }
+    await w.done;
   },
   // Run act(); ms until \`sel\`'s children next change and the frame is painted.
   async timed(sel, act, ms = ${WAIT_MS}) {
-    const el = document.querySelector(sel); const t0 = performance.now();
-    const changed = new Promise((res, rej) => {
-      const o = new MutationObserver(() => { o.disconnect(); clearTimeout(t); res(); });
-      const t = setTimeout(() => { o.disconnect(); rej(new Error("timed out after " + ms / 1000 + " s waiting for " + sel + " to change")); }, ms);
-      o.observe(el, { childList: true });
-    });
-    act(); await changed; await T.frame(); return Math.round(performance.now() - t0);
+    const t0 = performance.now(); const w = T.watch(sel, null, ms);
+    try { await act(); } catch (e) { w.cancel(); throw e; }
+    await w.done; await T.frame(); return Math.round(performance.now() - t0);
   },
   async add(title, opts = {}) { const f = id => document.getElementById(id);
     f("task-title").value = title; f("task-due").value = opts.due || ""; f("task-tags").value = opts.tags || "";
@@ -219,7 +229,8 @@ async function runPersona({ dir, prefix, findingIds = [], unit, e2e }) {
   }
 
   const counts = report();
-  process.exit(counts.fail ? 1 : 0);
+  // Not process.exit(): let stdout drain so run-all always sees the Summary line.
+  process.exitCode = counts.fail ? 1 : 0;
 }
 
 module.exports = { runPersona, personaSpec, specIds, FILLER, WAIT_MS, ymd, v3, base, HOLDER };

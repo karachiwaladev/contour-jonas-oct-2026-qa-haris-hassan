@@ -1,7 +1,7 @@
 # Eval report: personas/bot-bob
 
 **Result: PASS**. 5 passed, 0 not executed, 0 incomplete, 0 with unexpected failures, 1 unit, 0 skipped. 23 log entries read, 0 malformed, 0 unknown case tags.
-Generated 2026-10-27T08:14:42.631Z.
+Generated 2026-10-27T09:09:58.622Z.
 
 | Case | Auto | Status | Missing actions / note |
 |------|------|--------|------------------------|

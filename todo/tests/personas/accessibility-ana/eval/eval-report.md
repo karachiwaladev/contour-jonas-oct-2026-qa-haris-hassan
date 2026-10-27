@@ -1,7 +1,7 @@
 # Eval report: personas/accessibility-ana
 
 **Result: PASS**. 5 passed, 0 not executed, 0 incomplete, 0 with unexpected failures, 0 unit, 2 skipped. 16 log entries read, 0 malformed, 0 unknown case tags.
-Generated 2026-10-27T08:14:25.675Z.
+Generated 2026-10-27T09:09:42.081Z.
 
 | Case | Auto | Status | Missing actions / note |
 |------|------|--------|------------------------|
@@ -11,4 +11,4 @@ Generated 2026-10-27T08:14:25.675Z.
 | ANA-04 | e2e | ➖ skipped | no log assertion (spec: '—'); the injected storage failure is logged as task.add:error |
 | ANA-05 | e2e | ✅ pass |  |
 | ANA-06 | e2e | ✅ pass |  |
-| ANA-07 | manual | ➖ skipped | manual: real screen-reader walkthrough |
+| ANA-07 | manual | ➖ skipped | manual: run by hand, not judged from the log |
