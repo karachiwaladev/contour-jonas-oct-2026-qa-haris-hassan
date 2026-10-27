@@ -1,0 +1,4 @@
+# Local secrets (API keys for end-to-end test systems). Never commit them;
+# env.example lists the variable names with placeholder values.
+.env
+.env.*
