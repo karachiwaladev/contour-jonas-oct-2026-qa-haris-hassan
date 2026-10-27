@@ -21,9 +21,9 @@ const searchInput = document.getElementById("search-filter");
 const dueFilter = document.getElementById("due-filter");
 
 // Filters reset on reload by design (ticket #5 scope).
-// `search` is the parsed query key ("" = none) and `needle` its matcher (see parseSearch);
+// `search` is the parsed query key ("" = none; see parseSearch);
 // `due` is ""|overdue|today|week|none.
-const filters = { status: "all", tag: "", priority: "", due: "", search: "", needle: null };
+const filters = { status: "all", tag: "", priority: "", due: "", search: "" };
 
 // The open task being edited inline (at most one), or null.
 let editingId = null;
@@ -50,7 +50,7 @@ function clearError(source) {
 // The action log is best-effort: if logger.js didn't load, use a no-op stand-in
 // so the app itself keeps working.
 const Log = typeof TodoLog !== "undefined" ? TodoLog : {
-  log() {}, setPending() {}, clearPending() {}, writePending() {}, writePendingNow() {}, claimUserToken: () => null, recent: async () => [], count: async () => 0,
+  log() {}, claimUserToken: () => null, recent: async () => [], count: async () => 0,
   exportJSONL: async () => "", clear: async () => {}, flush: async () => {},
 };
 
@@ -59,31 +59,7 @@ const Log = typeof TodoLog !== "undefined" ? TodoLog : {
 // directly can't pass it (they are logged as "api").
 const USER = Log.claimUserToken();
 
-// Search is logged only as "set" or "cleared", never the query: "set" once
-// typing pauses (SEARCH_LOG_DELAY) if the query differs from the last one
-// logged (so refining it logs another "set"), "cleared" at once. TodoLog holds
-// the pending "set" and writes it before any later entry, so the log keeps the
-// order things happened in.
-const SEARCH_LOG_DELAY = 400;
-let searchLogged = ""; // the query of the last search entry written
-
-function logSearchChange() {
-  const q = filters.search;
-  if (!q) {
-    Log.clearPending();
-    if (searchLogged) {
-      searchLogged = "";
-      Log.log({ action: "ui.filter_search", actor: USER, changes: { search: "cleared" } });
-    }
-  } else if (q === searchLogged) {
-    Log.clearPending(); // back to what is already logged
-  } else {
-    Log.setPending({ action: "ui.filter_search", actor: USER, changes: { search: "set" } }, SEARCH_LOG_DELAY,
-      () => { searchLogged = q; });
-  }
-}
-
-// Every other entry this page logs goes through here (as the user).
+// Every entry this page logs goes through here (as the user).
 function logUser(entry) {
   Log.log({ ...entry, actor: USER });
 }
@@ -401,9 +377,10 @@ function matchesDue(task, ctx) {
   return true;
 }
 
-// Parse the search box once: trimmed; a leading "#" (then trimmed again)
-// searches tag names only. `key` identifies the search ("" = none, also for a
-// bare "#"); `needle` is what matchesSearch uses. Matching is a plain,
+// Parse a search: trimmed; a leading "#" (then trimmed again) searches tag
+// names only. `key` identifies the search ("" = none, also for a bare "#") and
+// is all `filters.search` keeps; `needle`, what matchesSearch uses, is derived
+// from it when drawing (a key parses to the same needle). Matching is a plain,
 // case-insensitive substring, never a RegExp from user text, and uses
 // toLowerCase() like TodoDB.normalizeTags, so the browser's locale doesn't
 // change what matches.
@@ -440,12 +417,14 @@ let listRequested = false; // a { reload: false } redraw is waiting for a read i
 
 // Redraw. By default re-reads storage and redraws everything. { reload: false }
 // (search and Due changes) re-filters the last list read and redraws only the
-// list, counter and empty message; while a read is in flight it waits for that
-// read, which honours it even if the read fails or is superseded.
+// list, counter and empty message, never starting a read: while a read is in
+// flight it waits for that read, which honours it even if the read fails or is
+// superseded; if the first load failed there is nothing to filter (its error
+// is shown) and the next full render retries.
 async function render({ reload = true } = {}) {
-  if (!reload && lastTasks) {
+  if (!reload) {
     if (loading) listRequested = true;
-    else drawList(lastTasks);
+    else if (lastTasks) drawList(lastTasks);
     return;
   }
   const seq = ++renderSeq;
@@ -484,8 +463,10 @@ function draw(tasks) {
 // The task list, counter and empty message for the current filters.
 function drawList(tasks) {
   const todayStr = today();
-  const ctx = { today: todayStr, weekEnd: Recurrence.addDays(todayStr, 6), needle: filters.needle };
-  const shown = tasks.filter((task) => matches(task, ctx)).sort(compareTasks);
+  const ctx = { today: todayStr, weekEnd: Recurrence.addDays(todayStr, 6), needle: parseSearch(filters.search).needle };
+  // The task being edited stays listed while its form is open, whatever the
+  // filters, so the draft isn't hidden; after Save or Cancel they apply again.
+  const shown = tasks.filter((task) => matches(task, ctx) || (!task.done && task.id === editingId)).sort(compareTasks);
   list.replaceChildren(...shown.map(taskItem));
 
   const filtered = filters.status !== "all" || filters.tag !== "" || filters.priority !== "" ||
@@ -629,18 +610,22 @@ dueFilter.addEventListener("change", () => {
   filters.due = dueFilter.value;
   logUser({ action: "ui.filter_due", changes: { due: filters.due || "all" } });
   render({ reload: false });
+  if (activity.open) renderActivity(); // a list-only redraw doesn't refresh the panel
 });
 
-// Search filters as you type (see logSearchChange for how it is logged).
-// Clearing, however it happens (Escape, the box's clear button, deleting the
-// text), logs at once.
+// Search filters as you type. It is logged on and off only, at once: "set"
+// when the box goes from no search to a query, "cleared" when it empties
+// (Escape, the box's clear button, deleting the text). Refining a query logs
+// nothing, and the query itself is never logged.
 function onSearchChange() {
-  const { key, needle } = parseSearch(searchInput.value);
+  const { key } = parseSearch(searchInput.value);
   if (key === filters.search) return;
+  const wasOn = filters.search !== "";
   filters.search = key;
-  filters.needle = needle;
+  const toggled = wasOn !== (key !== "");
+  if (toggled) logUser({ action: "ui.filter_search", changes: { search: key ? "set" : "cleared" } });
   render({ reload: false });
-  logSearchChange();
+  if (toggled && activity.open) renderActivity();
 }
 
 searchInput.addEventListener("input", onSearchChange);
@@ -652,11 +637,6 @@ searchInput.addEventListener("keydown", (e) => {
   searchInput.value = "";
   onSearchChange();
 });
-
-// A pending search entry is written when the page is hidden, and on unload
-// synchronously if possible (a queued write would be dropped there).
-window.addEventListener("pagehide", () => Log.writePendingNow());
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") Log.writePending(); });
 
 // Filters reset on reload: don't let the browser restore old control values.
 searchInput.value = "";
