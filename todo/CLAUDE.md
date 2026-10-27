@@ -35,7 +35,9 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 - Sort order: open tasks before completed ones. Open tasks are ordered by priority (High, Medium, Low), then soonest-due first with undated tasks last, then newest first.
 - **Editing:** `TodoDB.update` validates every field like `add` does, and rejects the whole edit if any field is invalid or if the task was completed or deleted meanwhile.
   - Titles follow one rule for add and edit (trimmed, not empty, at most 200 characters). The length is checked on edit only when the title changes.
-  - Only open tasks can be edited, one at a time. Unsaved input survives re-renders.
+  - Only open tasks can be edited, one at a time. Unsaved input survives re-renders. Each task has one save at a time, and Cancel is off while it runs. A half-typed date blocks the save instead of clearing the due date.
+  - Edit errors show inside the form. If the task was completed or deleted meanwhile, the form closes and the page's `#error` box explains.
+  - `add` corrects odd values (it falls back to defaults), but `update` rejects them, so an API edit never silently stores something other than what was asked.
   - A repeat with no due date starts today, and a new due date or repeat resets the monthly anchor.
   - An edited task is marked `edited`, so undoing its parent never deletes it; the parent becomes a one-off instead.
 - The database open handles `onblocked` (another tab holds an older version: fail with a clear message, and close any late connection) and `onversionchange` (close and forget this connection so the next call reopens).
@@ -55,7 +57,7 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 
 ## Tests
 
-`node todo/tests/issue-15/run.js` runs the task-priority suite (TC-01–TC-30). Its TC-24 runs the issue-14 suite, which in turn runs issue-7, so one command checks everything.
+`node todo/tests/issue-15/run.js` runs the task-priority suite (TC-01–TC-35). Its TC-24 runs the issue-14 suite, which in turn runs issue-7, so one command checks everything.
 
 `node todo/tests/issue-14/run.js` runs the action-log suite (TC-01–TC-40, including the full issue-7 suite as TC-26). Both runners tag every end-to-end case in the log (`TodoLog.setTestCase`), then run the eval and write `eval/eval-report.md` and `eval/eval-report.json`. A case that didn't run, or didn't produce its expected actions, fails the run.
 

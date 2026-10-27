@@ -305,12 +305,13 @@ async function e2e() {
       const f = T.item(${idGone}).querySelector(".edit-form"); f.querySelector(".edit-title").value = "Changed";
       await TodoDB.setDone(${idGone}, true);
       f.querySelector(".edit-save").click(); await T.wait(300); await TodoLog.flush();
-      const g = document.querySelector(".edit-form"); const msg = g && g.querySelector(".edit-error");
-      const res = { msg: msg && !msg.hidden ? msg.textContent : null, title: (await T.get(${idGone})).title,
+      const box = document.getElementById("error");
+      const res = { formOpen: !!document.querySelector(".edit-form"), box: !box.hidden ? box.textContent : null,
+        title: (await T.get(${idGone})).title,
         errs: (await T.entries("TC-27")).filter(e => e.action === "task.edit" && e.outcome === "error").map(e => e.actor) };
-      if (g) g.querySelector(".edit-cancel").click(); await T.wait(); return res;`);
-    check("TC-27", "edit of a completed/deleted task is rejected and shown",
-      /completed or deleted/i.test(r.msg || "") && r.title === "Gone soon" && JSON.stringify(r.errs) === '["user"]', JSON.stringify(r));
+      box.hidden = true; return res;`);
+    check("TC-27", "edit of a completed task: form closes, page error box explains, nothing saved",
+      !r.formOpen && /completed or deleted/i.test(r.box || "") && r.title === "Gone soon" && JSON.stringify(r.errs) === '["user"]', JSON.stringify(r));
     await collect();
 
     // TC-28 one title rule; long legacy titles stay editable
@@ -452,7 +453,8 @@ async function e2e() {
   } catch (e) {
     check("E2E", "browser run", false, e.stack || e.message);
   } finally {
-    const unexpected = consoleErrors.filter((m) => !/TC-\d+ injected failure/.test(m));
+    // The app logs "gone" save errors on purpose (TC-27, TC-33) as well as showing them.
+    const unexpected = consoleErrors.filter((m) => !/TC-\d+ injected failure|completed or deleted/.test(m));
     check("TC-25", "no unexpected console errors", unexpected.length === 0, unexpected.join(" | "));
     await collect();
     await b.close();
