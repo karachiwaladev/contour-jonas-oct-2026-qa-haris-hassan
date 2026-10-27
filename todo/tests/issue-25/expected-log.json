@@ -120,5 +120,12 @@
   "TC-37": [
     "task.complete@user",
     "ui.filter_search@user"
+  ],
+  "TC-38": [
+    "ui.filter_due@user",
+    "ui.filter_search@user"
+  ],
+  "TC-39": [
+    "ui.filter_search@user"
   ]
 }

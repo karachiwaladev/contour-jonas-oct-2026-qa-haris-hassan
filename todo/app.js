@@ -50,7 +50,7 @@ function clearError(source) {
 // The action log is best-effort: if logger.js didn't load, use a no-op stand-in
 // so the app itself keeps working.
 const Log = typeof TodoLog !== "undefined" ? TodoLog : {
-  log() {}, setPending() {}, clearPending() {}, writePending() {}, writePendingNow() {}, claimUserToken: () => null, recent: async () => [], count: async () => 0,
+  log() {}, claimUserToken: () => null, recent: async () => [], count: async () => 0,
   exportJSONL: async () => "", clear: async () => {}, flush: async () => {},
 };
 
@@ -59,31 +59,7 @@ const Log = typeof TodoLog !== "undefined" ? TodoLog : {
 // directly can't pass it (they are logged as "api").
 const USER = Log.claimUserToken();
 
-// Search is logged only as "set" or "cleared", never the query: "set" once
-// typing pauses (SEARCH_LOG_DELAY) if the query differs from the last one
-// logged (so refining it logs another "set"), "cleared" at once. TodoLog holds
-// the pending "set" and writes it before any later entry, so the log keeps the
-// order things happened in.
-const SEARCH_LOG_DELAY = 400;
-let searchLogged = ""; // the query of the last search entry written
-
-function logSearchChange() {
-  const q = filters.search;
-  if (!q) {
-    Log.clearPending();
-    if (searchLogged) {
-      searchLogged = "";
-      Log.log({ action: "ui.filter_search", actor: USER, changes: { search: "cleared" } });
-    }
-  } else if (q === searchLogged) {
-    Log.clearPending(); // back to what is already logged
-  } else {
-    Log.setPending({ action: "ui.filter_search", actor: USER, changes: { search: "set" } }, SEARCH_LOG_DELAY,
-      () => { searchLogged = q; });
-  }
-}
-
-// Every other entry this page logs goes through here (as the user).
+// Every entry this page logs goes through here (as the user).
 function logUser(entry) {
   Log.log({ ...entry, actor: USER });
 }
@@ -440,12 +416,14 @@ let listRequested = false; // a { reload: false } redraw is waiting for a read i
 
 // Redraw. By default re-reads storage and redraws everything. { reload: false }
 // (search and Due changes) re-filters the last list read and redraws only the
-// list, counter and empty message; while a read is in flight it waits for that
-// read, which honours it even if the read fails or is superseded.
+// list, counter and empty message, never starting a read: while a read is in
+// flight it waits for that read, which honours it even if the read fails or is
+// superseded; if the first load failed there is nothing to filter (its error
+// is shown) and the next full render retries.
 async function render({ reload = true } = {}) {
-  if (!reload && lastTasks) {
+  if (!reload) {
     if (loading) listRequested = true;
-    else drawList(lastTasks);
+    else if (lastTasks) drawList(lastTasks);
     return;
   }
   const seq = ++renderSeq;
@@ -629,18 +607,23 @@ dueFilter.addEventListener("change", () => {
   filters.due = dueFilter.value;
   logUser({ action: "ui.filter_due", changes: { due: filters.due || "all" } });
   render({ reload: false });
+  if (activity.open) renderActivity(); // a list-only redraw doesn't refresh the panel
 });
 
-// Search filters as you type (see logSearchChange for how it is logged).
-// Clearing, however it happens (Escape, the box's clear button, deleting the
-// text), logs at once.
+// Search filters as you type. It is logged on and off only, at once: "set"
+// when the box goes from no search to a query, "cleared" when it empties
+// (Escape, the box's clear button, deleting the text). Refining a query logs
+// nothing, and the query itself is never logged.
 function onSearchChange() {
   const { key, needle } = parseSearch(searchInput.value);
   if (key === filters.search) return;
+  const wasOn = filters.search !== "";
   filters.search = key;
   filters.needle = needle;
+  const toggled = wasOn !== (key !== "");
+  if (toggled) logUser({ action: "ui.filter_search", changes: { search: key ? "set" : "cleared" } });
   render({ reload: false });
-  logSearchChange();
+  if (toggled && activity.open) renderActivity();
 }
 
 searchInput.addEventListener("input", onSearchChange);
@@ -652,11 +635,6 @@ searchInput.addEventListener("keydown", (e) => {
   searchInput.value = "";
   onSearchChange();
 });
-
-// A pending search entry is written when the page is hidden, and on unload
-// synchronously if possible (a queued write would be dropped there).
-window.addEventListener("pagehide", () => Log.writePendingNow());
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") Log.writePending(); });
 
 // Filters reset on reload: don't let the browser restore old control values.
 searchInput.value = "";

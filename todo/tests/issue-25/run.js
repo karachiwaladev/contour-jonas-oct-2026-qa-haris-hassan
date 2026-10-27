@@ -12,12 +12,13 @@ const { spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 const { TODO_DIR, sleep, createChecker, startBrowser, runEval } = require("../lib/harness");
+const Recurrence = require(path.join(TODO_DIR, "recurrence.js"));
 
 const HERE = __dirname;
 const { results, check, report } = createChecker();
 const args = process.argv.slice(2);
-const DEBOUNCE_WAIT = 700; // longer than the app's ~400 ms search-log debounce
-const ymd = (o) => { const d = new Date(); d.setDate(d.getDate() + o); const p = (n) => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); };
+// Today + o days as "YYYY-MM-DD", with the app's own date helpers.
+const ymd = (o) => Recurrence.addDays(Recurrence.today(), o);
 
 async function e2e() {
   let b;
@@ -28,7 +29,7 @@ async function e2e() {
 
   const H = `window.T = {
     wait: (ms = 250) => new Promise(r => setTimeout(r, ms)),
-    ymd(o) { const d = new Date(); d.setDate(d.getDate() + o); const p = n => String(n).padStart(2, "0"); return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()); },
+    ymd: (o) => Recurrence.addDays(Recurrence.today(), o),
     titles: () => [...document.querySelectorAll("#task-list .title")].map(e => e.textContent),
     sorted: () => T.titles().slice().sort(),
     items: (t) => [...document.querySelectorAll(".task")].filter(l => (l.querySelector(".title") || {}).textContent === t),
@@ -77,7 +78,6 @@ async function e2e() {
   const clearBox = async () => { await ev(`const s = document.getElementById("search-filter"); s.focus(); s.select();`); await key("Backspace", 8); };
   // Replace the search text: clear, then type.
   const search = async (text, gap = 30) => { await clearBox(); await type(text, gap); await sleep(150); };
-  const settle = () => sleep(DEBOUNCE_WAIT);
   // Reload the page like a person (F5), then reinstall the test helpers.
   const reload = async () => {
     await send("Page.reload", {});
@@ -115,7 +115,6 @@ async function e2e() {
       const steps = [];
       await focusSearch();
       for (const ch of "milk") { await send("Input.insertText", { text: ch }); await sleep(80); steps.push(await ev(`return T.titles().length;`)); }
-      await settle();
       r = { steps, final: await ev(`return T.sorted();`) };
       check("TC-02", "list narrows after each keystroke; finally Buy milk + Milkshake recipe",
         steps.length === 4 && steps[0] < 3 && steps.every((n, i) => i === 0 || n <= steps[i - 1]) &&
@@ -127,8 +126,7 @@ async function e2e() {
     await tc("TC-03", "search by tag", async () => {
       await fresh([["A", { tags: "work" }], ["B", { tags: "home" }], ["C"]]);
       await tag("TC-03");
-      await search("wor"); await settle();
-      r = await ev(`return T.sorted();`);
+      await search("wor");      r = await ev(`return T.sorted();`);
       check("TC-03", "partial tag match: only A", JSON.stringify(r) === '["A"]', JSON.stringify(r));
       await collect();
     });
@@ -139,7 +137,6 @@ async function e2e() {
       await tag("TC-04");
       await search("Milk"); const a4 = await ev(`return T.sorted();`);
       await search("mILK"); const b4 = await ev(`return T.sorted();`);
-      await settle();
       check("TC-04", "case-insensitive: Buy MILK both times", JSON.stringify(a4) === '["Buy MILK"]' && JSON.stringify(b4) === '["Buy MILK"]', JSON.stringify({ a4, b4 }));
       await collect();
     });
@@ -148,8 +145,7 @@ async function e2e() {
     await tc("TC-05", "leading # searches tags only", async () => {
       await fresh([["Report", { tags: "work" }], ["Work out"]]);
       await tag("TC-05");
-      await search("#work"); await settle();
-      r = await ev(`return T.sorted();`);
+      await search("#work");      r = await ev(`return T.sorted();`);
       check("TC-05", "#work matches tag names only: Report", JSON.stringify(r) === '["Report"]', JSON.stringify(r));
       await collect();
     });
@@ -158,8 +154,7 @@ async function e2e() {
     await tc("TC-06", "spaces trimmed", async () => {
       await fresh([["Buy milk"], ["Other"]]);
       await tag("TC-06");
-      await search("   milk  "); await settle();
-      r = await ev(`return T.sorted();`);
+      await search("   milk  ");      r = await ev(`return T.sorted();`);
       check("TC-06", "surrounding spaces trimmed: Buy milk", JSON.stringify(r) === '["Buy milk"]', JSON.stringify(r));
       await collect();
     });
@@ -168,8 +163,7 @@ async function e2e() {
     await tc("TC-07", "spaces only = no search", async () => {
       await fresh([["One"], ["Two"], ["Three"]]);
       await tag("TC-07");
-      await type("   "); await settle();
-      r = await ev(`return { n: T.titles().length, c: T.count(), v: T.search().value };`);
+      await type("   ");      r = await ev(`return { n: T.titles().length, c: T.count(), v: T.search().value };`);
       check("TC-07", "spaces only: all 3 show, no 'showing N'", r.n === 3 && !/showing/.test(r.c) && r.v === "   ", JSON.stringify(r));
       await collect();
     });
@@ -177,11 +171,9 @@ async function e2e() {
     // TC-08 clearing shows everything
     await tc("TC-08", "clearing shows everything", async () => {
       await fresh([["Buy milk"], ["Pay rent"], ["Bread"]]);
-      await search("milk"); await settle();
-      const before8 = await ev(`return { n: T.titles().length, c: T.count() };`);
+      await search("milk");      const before8 = await ev(`return { n: T.titles().length, c: T.count() };`);
       await tag("TC-08");
-      await clearBox(); await settle();
-      r = await ev(`return { n: T.titles().length, c: T.count(), v: T.search().value };`);
+      await clearBox();      r = await ev(`return { n: T.titles().length, c: T.count(), v: T.search().value };`);
       check("TC-08", "clearing the box shows all 3 and drops 'showing N'",
         before8.n === 1 && /showing 1/.test(before8.c) && r.n === 3 && !/showing/.test(r.c) && r.v === "", JSON.stringify({ before8, r }));
       await collect();
@@ -189,11 +181,9 @@ async function e2e() {
 
     // TC-09 Escape clears
     await tc("TC-09", "Escape clears", async () => {
-      await search("milk"); await settle();
-      const before9 = await ev(`return T.titles().length;`);
+      await search("milk");      const before9 = await ev(`return T.titles().length;`);
       await tag("TC-09");
-      await focusSearch(); await key("Escape", 27); await settle();
-      r = await ev(`return { n: T.titles().length, v: T.search().value };`);
+      await focusSearch(); await key("Escape", 27);      r = await ev(`return { n: T.titles().length, v: T.search().value };`);
       check("TC-09", "Escape empties the box and shows all tasks", before9 === 1 && r.n === 3 && r.v === "", JSON.stringify({ before9, r }));
       await collect();
     });
@@ -201,8 +191,7 @@ async function e2e() {
     // TC-10 no matches
     await tc("TC-10", "no matches", async () => {
       await open(); await tag("TC-10");
-      await search("zzzz"); await settle();
-      r = await ev(`return { n: T.titles().length, msg: T.emptyMsg(), c: T.count() };`);
+      await search("zzzz");      r = await ev(`return { n: T.titles().length, msg: T.emptyMsg(), c: T.count() };`);
       check("TC-10", "no matches: empty list, 'No tasks match this filter.', 'showing 0'",
         r.n === 0 && r.msg === "No tasks match this filter." && /· showing 0$/.test(r.c), JSON.stringify(r));
       await collect();
@@ -265,8 +254,7 @@ async function e2e() {
     await tc("TC-16", "search + status", async () => {
       await fresh([["Milk A"], ["Milk B"]], ["Milk B"]);
       await tag("TC-16");
-      await search("milk"); await settle();
-      r = await ev(`await T.status("active"); return T.sorted();`);
+      await search("milk");      r = await ev(`await T.status("active"); return T.sorted();`);
       check("TC-16", "search milk + Active: only Milk A", JSON.stringify(r) === '["Milk A"]', JSON.stringify(r));
       await collect();
     });
@@ -275,8 +263,7 @@ async function e2e() {
     await tc("TC-17", "search + tag + priority", async () => {
       await fresh([["Milk", { priority: "high", tags: "shop" }], ["Milk", { priority: "low", tags: "shop" }], ["Milk", { priority: "high", tags: "home" }]]);
       await tag("TC-17");
-      await search("milk"); await settle();
-      r = await ev(`await T.filter("tag-filter", "shop"); await T.filter("priority-filter", "high");
+      await search("milk");      r = await ev(`await T.filter("tag-filter", "shop"); await T.filter("priority-filter", "high");
         return [...document.querySelectorAll("#task-list .task")].map(li => ({ t: li.querySelector(".title").textContent,
           p: li.querySelector(".priority").textContent, chips: [...li.querySelectorAll(".chip")].map(c => c.textContent) }));`);
       check("TC-17", "search + tag shop + High: only the High shop task",
@@ -296,16 +283,14 @@ async function e2e() {
         await T.add("Other", { priority: "high", tags: "work", due: T.ymd(2) });
         await T.tick("Report done");`);
       await open(); await tag("TC-18");
-      await search("rep"); await settle();
-      r = await ev(`await T.status("active"); await T.filter("tag-filter", "work"); await T.filter("priority-filter", "high");
+      await search("rep");      r = await ev(`await T.status("active"); await T.filter("tag-filter", "work"); await T.filter("priority-filter", "high");
         await T.filter("due-filter", "week"); const out = [T.sorted()];
         await T.filter("due-filter", ""); out.push(T.titles().length);
         await T.filter("priority-filter", ""); out.push(T.titles().length);
         await T.filter("tag-filter", ""); out.push(T.titles().length);
         await T.status("all"); out.push(T.titles().length);
         return out;`);
-      await clearBox(); await settle();
-      const all18 = await ev(`return T.titles().length;`);
+      await clearBox();      const all18 = await ev(`return T.titles().length;`);
       r.push(all18);
       check("TC-18", "all five filters: only Report; clearing due, priority, tag, status, search widens 2,3,4,5,6",
         JSON.stringify(r) === JSON.stringify([["Report"], 2, 3, 4, 5, 6]), JSON.stringify(r));
@@ -315,8 +300,7 @@ async function e2e() {
     // TC-19 list updates while searching
     await tc("TC-19", "list updates while searching", async () => {
       await fresh([["Buy milk"], ["Milkshake"], ["Bread"]]);
-      await search("milk"); await settle();
-      await tag("TC-19");
+      await search("milk");      await tag("TC-19");
       r = await ev(`const out = {};
         await T.add("Oat milk"); out.afterAdd = T.sorted();
         await T.tick("Buy milk"); out.afterTick = T.titles();
@@ -333,8 +317,7 @@ async function e2e() {
     await tc("TC-20", "filters reset on reload", async () => {
       await ev(`await T.add("Late", { due: T.ymd(-1) });`);
       await open();
-      await search("milk"); await settle();
-      await ev(`await T.filter("due-filter", "overdue");`);
+      await search("milk");      await ev(`await T.filter("due-filter", "overdue");`);
       const before20 = await ev(`return { v: T.search().value, due: document.getElementById("due-filter").value, n: T.titles().length };`);
       await tag("TC-20");
       await reload();
@@ -354,7 +337,6 @@ async function e2e() {
       await search("("); out21.paren = await ev(`return T.sorted();`);
       await search(".*"); out21.star = await ev(`return T.sorted();`);
       await search("a.b"); out21.dot = await ev(`return T.sorted();`);
-      await settle();
       out21.errors = consoleErrors.slice(errs21);
       check("TC-21", "regex characters match literally; no console errors",
         JSON.stringify(out21.paren) === '["Plan (draft)"]' && JSON.stringify(out21.star) === "[]" && JSON.stringify(out21.dot) === '["a.b"]' &&
@@ -371,7 +353,6 @@ async function e2e() {
       const len22 = await ev(`return T.search().value.length;`);
       await search("café"); const cafe = await ev(`return T.sorted();`);
       await search("東京"); const tokyo = await ev(`return T.sorted();`);
-      await settle();
       check("TC-22", "box holds at most 200 chars; café and 東京 match",
         len22 === 200 && JSON.stringify(cafe) === '["Café crème"]' && JSON.stringify(tokyo) === '["東京 trip"]', JSON.stringify({ len22, cafe, tokyo }));
       await collect();
@@ -382,8 +363,7 @@ async function e2e() {
       await fresh([]);
       await tag("TC-23");
       const errs23 = consoleErrors.length;
-      await search("x"); await settle();
-      await ev(`await T.filter("due-filter", "overdue");`);
+      await search("x");      await ev(`await T.filter("due-filter", "overdue");`);
       r = await ev(`return { msg: T.emptyMsg(), n: T.titles().length, box: document.getElementById("error").hidden };`);
       r.errors = consoleErrors.slice(errs23);
       check("TC-23", "no tasks + search + Overdue: 'No tasks yet. Add one above.', no errors",
@@ -399,7 +379,6 @@ async function e2e() {
       const a24 = await ev(`return { t: T.titles(), img: document.querySelectorAll("img").length, xss: typeof window.__xss };`);
       await search("<b>bold</b>"); await sleep(200);
       const b24 = await ev(`return { t: T.titles(), b: document.querySelectorAll("main b").length, img: document.querySelectorAll("img").length, xss: typeof window.__xss };`);
-      await settle();
       check("TC-24", "HTML in titles and queries stays text; nothing injected",
         JSON.stringify(a24.t) === JSON.stringify(["<img src=x onerror=window.__xss=1>"]) && a24.img === 0 && a24.xss === "undefined" &&
         b24.t.length === 0 && b24.b === 0 && b24.img === 0 && b24.xss === "undefined", JSON.stringify({ a24, b24 }));
@@ -410,9 +389,8 @@ async function e2e() {
     await tc("TC-25", "search text never logged", async () => {
       await fresh([["Buy milk"]]);
       await tag("TC-25");
-      await search("secret-word-42"); await settle();
-      await clearBox(); await settle();
-      r = await ev(`const s = (await T.entries("TC-25")).filter(e => e.action === "ui.filter_search").map(e => e.changes.search);
+      await search("secret-word-42"); await sleep(200); // pause
+      await clearBox();      r = await ev(`const s = (await T.entries("TC-25")).filter(e => e.action === "ui.filter_search").map(e => e.changes.search);
         const all = JSON.stringify(await TodoLog.all()) + await TodoLog.exportJSONL(); return { s, leak: all.includes("secret-word-42") };`);
       check("TC-25", "ui.filter_search logged set then cleared; query text never logged",
         JSON.stringify(r.s) === '["set","cleared"]' && !r.leak, JSON.stringify(r));
@@ -442,8 +420,7 @@ async function e2e() {
     await tc("TC-28", "tag chip + search", async () => {
       await fresh([["Milk", { tags: "shop" }], ["Bread", { tags: "shop" }], ["Oat milk"]]);
       await tag("TC-28");
-      await search("milk"); await settle();
-      r = await ev(`const li = T.items("Milk")[0]; li.querySelector(".chip").click(); await T.wait(); await TodoLog.flush();
+      await search("milk");      r = await ev(`const li = T.items("Milk")[0]; li.querySelector(".chip").click(); await T.wait(); await TodoLog.flush();
         return { tag: document.getElementById("tag-filter").value, box: T.search().value, t: T.sorted(), done: (await TodoDB.all()).find(t => t.title === "Milk").done };`);
       check("TC-28", "chip sets tag filter, search stays, task not ticked",
         r.tag === "shop" && r.box === "milk" && JSON.stringify(r.t) === '["Milk"]' && r.done === false, JSON.stringify(r));
@@ -457,8 +434,7 @@ async function e2e() {
       await tag("TC-29");
       await ev(`T.item(${id29}).querySelector(".edit").click(); await T.wait(100);
         const t = T.item(${id29}).querySelector(".edit-title"); t.value = "Draft"; t.dispatchEvent(new Event("input", { bubbles: true }));`);
-      await type("mil"); await settle();
-      r = await ev(`const f = T.item(${id29}) && T.item(${id29}).querySelector(".edit-form");
+      await type("mil");      r = await ev(`const f = T.item(${id29}) && T.item(${id29}).querySelector(".edit-form");
         const res = { open: !!f, title: f && f.querySelector(".edit-title").value, stored: (await T.get(${id29})).title, bread: T.items("Bread").length };
         if (f) f.querySelector(".edit-cancel").click(); await T.wait(); return res;`);
       check("TC-29", "edit form stays open with unsaved 'Draft' while searching",
@@ -473,8 +449,7 @@ async function e2e() {
       try {
         await fresh([["Buy milk", { tags: "shop", priority: "high", due: ymd(-1) }], ["Pay rent", { tags: "home" }]]);
         await tag("TC-30");
-        await search("milk"); await settle();
-        await ev(`await T.filter("due-filter", "overdue");`);
+        await search("milk");        await ev(`await T.filter("due-filter", "overdue");`);
         layout30 = await ev(`const de = document.documentElement; const vw = de.clientWidth;
           const bar = document.querySelector(".filters"); const parts = bar ? [...bar.querySelectorAll("input, select, button")] : [];
           return { vw, sw: de.scrollWidth, bodySw: document.body.scrollWidth, overflow: parts.filter(p => p.getBoundingClientRect().right > vw + 0.5).map(p => p.id || p.textContent),
@@ -495,7 +470,6 @@ async function e2e() {
       await ev(`T.items("Milk")[0].querySelector("input[type=checkbox]").click(); await T.wait(); await TodoLog.flush();`);
       const order = await ev(`return (await T.entries("TC-32")).filter(e => ["ui.filter_search", "task.complete"].includes(e.action))
         .map(e => e.action + ":" + (e.action === "ui.filter_search" ? e.changes.search : e.outcome));`);
-      await settle();
       // Part 2: clear (logged at once), type again, reload within 100 ms.
       await clearBox(); await sleep(100);
       const setsBefore = (await searchEntries("TC-32")).filter((x) => x === "set").length;
@@ -503,7 +477,7 @@ async function e2e() {
       await reload();
       const after = await searchEntries("TC-32");
       const setsAfter = after.filter((x) => x === "set").length;
-      check("TC-32", "search 'set' logged before task.complete; a pending 'set' survives a quick reload",
+      check("TC-32", "search 'set' logged before task.complete; the 'set' is in the log after a quick reload",
         JSON.stringify(order) === JSON.stringify(["ui.filter_search:set", "task.complete:ok"]) && setsAfter === setsBefore + 1 &&
         after[after.length - 1] === "set", JSON.stringify({ order, setsBefore, after }));
       await collect();
@@ -512,8 +486,7 @@ async function e2e() {
     // TC-33 clearing with the box's native clear button logs at once (code review #2)
     await tc("TC-33", "clearing with the clear button logs at once", async () => {
       await open();
-      await search("milk"); await settle();
-      const logged = await ev(`return (await TodoLog.all()).filter(e => e.action === "ui.filter_search").pop().changes.search;`);
+      await search("milk");      const logged = await ev(`return (await TodoLog.all()).filter(e => e.action === "ui.filter_search").pop().changes.search;`);
       await tag("TC-33");
       // Click the native clear button (inside the box, at its right edge).
       const box = await ev(`const s = T.search(); s.focus(); const r = s.getBoundingClientRect(); return { x: r.right, y: r.top + r.height / 2 };`);
@@ -539,7 +512,6 @@ async function e2e() {
       await search("#"); out.hash = await ev(`return { n: T.titles().length, c: T.count() };`);
       await search("#   "); out.hashSpaces = await ev(`return { n: T.titles().length, c: T.count() };`);
       await search("# work"); out.hashWork = await ev(`return T.sorted();`);
-      await settle();
       check("TC-34", "'#' and '#   ' show every task with no 'showing N'; '# work' shows only Report",
         out.hash.n === 3 && !/showing/.test(out.hash.c) && out.hashSpaces.n === 3 && !/showing/.test(out.hashSpaces.c) &&
         JSON.stringify(out.hashWork) === '["Report"]', JSON.stringify(out));
@@ -561,7 +533,6 @@ async function e2e() {
         const turkish = await ev(`return Intl.DateTimeFormat().resolvedOptions().locale === "tr-TR" && "I".toLocaleLowerCase() === "\\u0131";`);
         await search("#INBOX"); const inbox = await ev(`return T.sorted();`);
         await search("idea"); const idea = await ev(`return T.sorted();`);
-        await settle();
         check("TC-35", "under tr-TR, '#INBOX' and 'idea' both find IDEA",
           turkish === true && JSON.stringify(inbox) === '["IDEA"]' && JSON.stringify(idea) === '["IDEA"]', JSON.stringify({ turkish, inbox, idea }));
       } finally {
@@ -587,7 +558,6 @@ async function e2e() {
       await ev(`await T.wait(50);`);
       const order = await ev(`return (await T.entries("TC-36")).filter(e => ["task.add", "ui.filter_search"].includes(e.action))
         .map(e => e.action + (e.action === "ui.filter_search" ? ":" + e.changes.search : ""));`);
-      await settle();
       await collect();
       // Scenario 2: type, then press Clear log within 400 ms.
       await clearBox(); await sleep(100);
@@ -595,7 +565,6 @@ async function e2e() {
       await type("milk", 10);
       await ev(`document.getElementById("log-clear").click();`);
       const within2 = Date.now() - t1;
-      await settle();
       const after = await ev(`return (await TodoLog.all()).map(e => e.action);`);
       check("TC-36", "task.add before ui.filter_search after a hide; Clear log leaves only log.clear",
         JSON.stringify(order) === JSON.stringify(["task.add", "ui.filter_search:set"]) && JSON.stringify(after) === '["log.clear"]' &&
@@ -615,10 +584,57 @@ async function e2e() {
       r = await ev(`const box = document.getElementById("error");
         const res = { t: T.titles(), box: box.hidden ? null : box.textContent, c: T.count() };
         TodoDB.all = window.__realAll; box.hidden = true; return res;`);
-      await settle();
       check("TC-37", "list shows only Milk from the last loaded tasks; error box explains the load failure",
         JSON.stringify(r.t) === '["Milk"]' && /load your tasks/i.test(r.box || "") && /showing 1/.test(r.c), JSON.stringify(r));
       await ev(`await render();`);
+      await collect();
+    });
+
+    // TC-38 the Activity panel shows filter entries at once (code review round 3 #1)
+    await tc("TC-38", "the Activity panel shows filter entries at once", async () => {
+      await fresh([["Late", { due: ymd(-1) }], ["Buy milk"]]);
+      await ev(`document.getElementById("activity").open = true; await T.wait(300);`);
+      await tag("TC-38");
+      const rows = `return [...document.querySelectorAll("#activity-list li")].slice(0, 2).map(li =>
+        li.querySelector('[data-col="action"]').textContent + " " + li.querySelector('[data-col="changes"]').textContent);`;
+      await ev(`await T.filter("due-filter", "overdue");`);
+      const afterDue = await ev(rows);
+      await type("milk", 10); await sleep(250);
+      const afterSearch = await ev(rows);
+      await ev(`document.getElementById("activity").open = false; await T.filter("due-filter", "");`);
+      check("TC-38", "panel lists ui.filter_due, then ui.filter_search set, with no other action",
+        /^ui\.filter_due .*overdue/.test(afterDue[0] || "") &&
+        /^ui\.filter_search .*"set"/.test(afterSearch[0] || "") && /^ui\.filter_due /.test(afterSearch[1] || ""),
+        JSON.stringify({ afterDue, afterSearch }));
+      await collect();
+    });
+
+    // TC-39 a failed first load isn't retried on every keystroke (code review round 3 #2)
+    await tc("TC-39", "a failed first load isn't retried on every keystroke", async () => {
+      await fresh([["Milk"], ["Bread"]]);
+      await tag("TC-39");
+      // Make the page's first open of the task database fail.
+      const initId = await addInitScript(`(() => { const real = IDBFactory.prototype.open; let failed = false;
+        IDBFactory.prototype.open = function (name, ...rest) {
+          if (name === "todo-app" && !failed) { failed = true; throw new Error("TC-39 injected failure"); }
+          return real.call(this, name, ...rest); }; })();`);
+      let r39;
+      try {
+        await open();
+        const loadFailed = await ev(`const box = document.getElementById("error"); return !box.hidden && /load your tasks/.test(box.textContent);`);
+        await ev(`window.__allCalls = 0; window.__realAll = TodoDB.all;
+          TodoDB.all = (...a) => { window.__allCalls++; return window.__realAll.apply(TodoDB, a); };`);
+        await type("groceries", 10); await sleep(300);
+        r39 = await ev(`const box = document.getElementById("error");
+          const res = { calls: window.__allCalls, shown: !box.hidden, text: box.textContent, messages: box.textContent.split("Couldn't").length - 1 };
+          TodoDB.all = window.__realAll; return res;`);
+        r39.loadFailed = loadFailed;
+      } finally {
+        await removeInitScript(initId);
+      }
+      await ev(`document.getElementById("error").hidden = true; await render();`);
+      check("TC-39", "after a failed first load, typing calls TodoDB.all() at most once more; one error message",
+        r39.loadFailed && r39.calls <= 1 && r39.shown && r39.messages === 1, JSON.stringify(r39));
       await collect();
     });
 
@@ -627,10 +643,8 @@ async function e2e() {
       await ev(`TodoLog.setTestCase(null);`);
       await fresh([["Buy milk", { tags: "shop", priority: "high", due: ymd(1) }],
         ["Oat milk", { tags: "shop" }], ["Pay rent", { tags: "home", priority: "high" }], ["Read book", { priority: "low" }]]);
-      await search("milk"); await settle();
-      await shot("02-search-milk.png");
-      await clearBox(); await settle();
-      await ev(`await T.filter("due-filter", "week");`);
+      await search("milk");      await shot("02-search-milk.png");
+      await clearBox();      await ev(`await T.filter("due-filter", "week");`);
       await shot("03-due-next-7-days.png");
     }
 
@@ -646,7 +660,7 @@ async function e2e() {
     await b.close();
   }
   // Every case gets a line, even if the run stopped before it.
-  for (let n = 1; n <= 37; n++) {
+  for (let n = 1; n <= 39; n++) {
     if (n === 31) continue; // TC-31 is the regression run, checked separately
     const id = "TC-" + String(n).padStart(2, "0");
     if (!results.some((x) => x.id === id)) check(id, "case", false, ran.has(id) ? "no result" : "did not run");
