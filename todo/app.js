@@ -17,9 +17,12 @@ const empty = document.getElementById("empty");
 const count = document.getElementById("count");
 const statusButtons = [...document.querySelectorAll("#status-filter button")];
 const tagFilter = document.getElementById("tag-filter");
+const searchInput = document.getElementById("search-filter");
+const dueFilter = document.getElementById("due-filter");
 
 // Filters reset on reload by design (ticket #5 scope).
-const filters = { status: "all", tag: "", priority: "" };
+// `search` is the trimmed query ("" = none); `due` is ""|overdue|today|week|none.
+const filters = { status: "all", tag: "", priority: "", due: "", search: "" };
 
 // The open task being edited inline (at most one), or null.
 let editingId = null;
@@ -355,12 +358,50 @@ function renderTagOptions(tasks) {
   tagFilter.disabled = counts.size === 0;
 }
 
-function matches(task) {
+// "YYYY-MM-DD" `n` days after the local date `ymd`.
+function addDays(ymd, n) {
+  const [y, m, d] = ymd.split("-").map(Number);
+  const date = new Date(y, m - 1, d + n);
+  const pad = (v) => String(v).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+// Due filter. Overdue follows the red badge: open tasks due before today.
+// "week" is today through today + 6.
+function matchesDue(task, todayStr) {
+  if (!filters.due) return true;
+  const dated = Recurrence.isValidDate(task.due);
+  if (filters.due === "none") return !dated;
+  if (!dated) return false;
+  if (filters.due === "overdue") return !task.done && task.due < todayStr;
+  if (filters.due === "today") return task.due === todayStr;
+  if (filters.due === "week") return task.due >= todayStr && task.due <= addDays(todayStr, 6);
+  return true;
+}
+
+// Search: a case-insensitive substring of the title or any tag; a leading "#"
+// searches tag names only. Plain string matching, never a RegExp from user text.
+function searchNeedle() {
+  const q = filters.search;
+  if (!q) return null;
+  const tagsOnly = q.startsWith("#");
+  return { tagsOnly, text: (tagsOnly ? q.slice(1) : q).toLocaleLowerCase() };
+}
+
+function matchesSearch(task, needle) {
+  if (!needle) return true;
+  const inTags = (task.tags || []).some((t) => t.toLocaleLowerCase().includes(needle.text));
+  if (needle.tagsOnly) return inTags;
+  return inTags || String(task.title).toLocaleLowerCase().includes(needle.text);
+}
+
+function matches(task, ctx = { today: today(), needle: searchNeedle() }) {
   if (filters.status === "active" && task.done) return false;
   if (filters.status === "completed" && !task.done) return false;
   if (filters.tag && !(task.tags || []).includes(filters.tag)) return false;
   if (filters.priority && task.priority !== filters.priority) return false;
-  return true;
+  if (!matchesDue(task, ctx.today)) return false;
+  return matchesSearch(task, ctx.needle);
 }
 
 // Each render reads asynchronously; only the newest one may draw, so a slow,
@@ -381,10 +422,12 @@ async function render() {
   renderTagOptions(tasks);
   for (const b of statusButtons) b.setAttribute("aria-pressed", String(b.dataset.status === filters.status));
 
-  const shown = tasks.filter(matches).sort(compareTasks);
+  const ctx = { today: today(), needle: searchNeedle() };
+  const shown = tasks.filter((t) => matches(t, ctx)).sort(compareTasks);
   list.replaceChildren(...shown.map(taskItem));
 
-  const filtered = filters.status !== "all" || filters.tag !== "" || filters.priority !== "";
+  const filtered = filters.status !== "all" || filters.tag !== "" || filters.priority !== "" ||
+    filters.due !== "" || filters.search !== "";
   empty.hidden = shown.length > 0;
   empty.textContent = tasks.length === 0 ? "No tasks yet. Add one above." : "No tasks match this filter.";
 
@@ -520,6 +563,52 @@ tagFilter.addEventListener("change", () => {
   Log.log({ action: "ui.filter_tag", actor: USER, changes: { tag: filters.tag ? "set" : "cleared" } });
   render();
 });
+
+dueFilter.addEventListener("change", () => {
+  filters.due = dueFilter.value;
+  Log.log({ action: "ui.filter_due", actor: USER, changes: { due: filters.due || "all" } });
+  render();
+});
+
+// Search filters as you type. The log gets only "set" or "cleared", never the
+// query, once typing pauses and only if the query changed since the last entry.
+const SEARCH_LOG_DELAY = 400;
+let searchLogged = "";
+let searchLogTimer = null;
+
+function logSearch() {
+  clearTimeout(searchLogTimer);
+  searchLogTimer = null;
+  if (filters.search === searchLogged) return;
+  searchLogged = filters.search;
+  Log.log({ action: "ui.filter_search", actor: USER, changes: { search: filters.search ? "set" : "cleared" } });
+}
+
+function applySearch() {
+  const q = searchInput.value.trim();
+  if (q === filters.search) return;
+  filters.search = q;
+  render();
+}
+
+searchInput.addEventListener("input", () => {
+  applySearch();
+  clearTimeout(searchLogTimer);
+  searchLogTimer = setTimeout(logSearch, SEARCH_LOG_DELAY);
+});
+
+// Escape clears the box at once (the native clear button fires "input").
+searchInput.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape" || !searchInput.value) return;
+  e.preventDefault();
+  searchInput.value = "";
+  applySearch();
+  logSearch();
+});
+
+// Filters reset on reload: don't let the browser restore old form values.
+searchInput.value = "";
+dueFilter.value = "";
 
 render();
 
