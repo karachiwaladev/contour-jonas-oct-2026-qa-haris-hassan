@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. Each end-to-end case is tagged in the action log and checked by the eval. **Expected log** uses the eval syntax `action[:error][@actor]`; `expected-log.json` holds the same expectations for the eval.
 
-**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-27** (31 cases). Not executed yet.
+**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-27** (31 cases). TC-32–TC-35 were added after the code review and **approved by hariscontour-gif on 2026-10-27**. Not executed yet.
 
 `T` means today. "Search" is the new search box; "Due" is the new due-date filter.
 
@@ -39,6 +39,10 @@ Written from the approved plan **before** implementation. Each end-to-end case i
 | TC-29 | Edit form survives search re-renders | Regression | Two open tasks | Edit "Milk", type "Draft" in the title; then type in the search box | The edit form stays open with "Draft" if its task still matches | ui.filter_search@user | e2e | ⏳ |
 | TC-30 | No console errors, phone width | Functional | App at 375 px wide | Use search and Due | No console errors; the filter bar wraps with no horizontal scroll | ui.filter_search@user, ui.filter_due@user | e2e | ⏳ |
 | TC-31 | Earlier suites still pass | Regression | — | Run `node todo/tests/issue-15/run.js` (runs issue-14 and issue-7) | All pass with their evals | — | e2e | ⏳ |
+| TC-32 | A pending search log entry is written first (code review #1) | Regression | Tasks exist, one open "Milk" | Type `milk` and tick "Milk" within 100 ms; separately, type `milk` and reload within 100 ms | The log has `ui.filter_search` `set` before `task.complete`; after the quick reload, the `set` entry is in the log | ui.filter_search@user, task.complete@user | e2e | ⏳ |
+| TC-33 | Clearing with ✕ logs at once (code review #2) | Regression | Search `milk` active and logged | Clear with the box's ✕ (the native `search` event), then change Due within 100 ms | `ui.filter_search` `cleared` is logged before `ui.filter_due` | ui.filter_search@user, ui.filter_due@user | e2e | ⏳ |
+| TC-34 | A bare `#` is no search (code review #3) | Edge | Tagged and untagged tasks; "Report" tagged `work` | Search `#`, then `#   `, then `# work` | `#` and `#   ` show every task with no "showing N"; `# work` shows only "Report" | ui.filter_search@user | e2e | ⏳ |
+| TC-35 | Matching doesn't depend on the browser's locale (code review #4) | Edge | Browser locale `tr-TR`; task "IDEA" tagged `inbox` | Search `#INBOX`, then `idea` | Both find the task | ui.filter_search@user | e2e | ⏳ |
 
 ## Coverage
 
