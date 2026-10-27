@@ -1,0 +1,414 @@
+{
+  "suite": "issue-14",
+  "generatedAt": "2026-10-27T05:07:31.879Z",
+  "ok": true,
+  "summary": {
+    "cases": 40,
+    "pass": 28,
+    "unit": 8,
+    "skipped": 4,
+    "notExecuted": 0,
+    "incomplete": 0,
+    "unexpectedError": 0,
+    "entries": 135,
+    "malformed": 1,
+    "unknown": 0
+  },
+  "cases": [
+    {
+      "id": "TC-01",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-02",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.complete",
+        "task.reopen",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-03",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.copy_removed",
+        "task.reopen",
+        "task.spawn",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-04",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.become_oneoff",
+        "task.complete",
+        "task.reopen",
+        "task.spawn",
+        "task.stop_repeating",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-05",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-06",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-07",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-08",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start",
+        "ui.filter_status",
+        "ui.filter_tag"
+      ]
+    },
+    {
+      "id": "TC-09",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start",
+        "test.fill"
+      ]
+    },
+    {
+      "id": "TC-10",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "log.export",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-11",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "log.clear"
+      ]
+    },
+    {
+      "id": "TC-12",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-13",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add:error",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-14",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-15",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-16",
+      "auto": "e2e",
+      "status": "skipped",
+      "note": "logging is made unavailable in this case on purpose, so it can leave no entries"
+    },
+    {
+      "id": "TC-17",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-18",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.spawn",
+        "test.case_start",
+        "ui.filter_tag"
+      ]
+    },
+    {
+      "id": "TC-19",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-20",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-21",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "TC-22",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "TC-23",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "TC-24",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "TC-25",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "TC-26",
+      "auto": "e2e",
+      "status": "skipped",
+      "note": "runs the issue-7 suite in its own browser; that run writes its own eval report"
+    },
+    {
+      "id": "TC-27",
+      "auto": "e2e",
+      "status": "skipped",
+      "note": "a console check across the whole run, not an app action"
+    },
+    {
+      "id": "TC-28",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "TC-29",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-30",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-31",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start",
+        "test.time"
+      ]
+    },
+    {
+      "id": "TC-32",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-33",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-34",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "TC-35",
+      "auto": "unit",
+      "status": "unit",
+      "note": "unit: no app actions"
+    },
+    {
+      "id": "TC-36",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add"
+      ]
+    },
+    {
+      "id": "TC-37",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-38",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete:error",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-39",
+      "auto": "e2e",
+      "status": "skipped",
+      "note": "the logger is blocked on purpose in this case, so it can leave no entries"
+    },
+    {
+      "id": "TC-40",
+      "auto": "unit + e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    }
+  ],
+  "malformed": [
+    {
+      "line": 117,
+      "reason": "invalid action"
+    }
+  ],
+  "unknown": []
+}

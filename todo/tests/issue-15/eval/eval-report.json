@@ -1,0 +1,450 @@
+{
+  "suite": "issue-15",
+  "generatedAt": "2026-10-27T05:07:12.075Z",
+  "ok": true,
+  "summary": {
+    "cases": 35,
+    "pass": 33,
+    "unit": 0,
+    "skipped": 2,
+    "notExecuted": 0,
+    "incomplete": 0,
+    "unexpectedError": 0,
+    "entries": 179,
+    "malformed": 0,
+    "unknown": 0
+  },
+  "cases": [
+    {
+      "id": "TC-01",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-02",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-03",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-04",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-05",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority",
+        "ui.filter_status",
+        "ui.filter_tag"
+      ]
+    },
+    {
+      "id": "TC-06",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-07",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-08",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-09",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-10",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-11",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-12",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.delete",
+        "task.edit",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-13",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-14",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.delete",
+        "task.spawn",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-15",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-16",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "task.edit",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-17",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-18",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-19",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-20",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "task.edit",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-21",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.delete",
+        "task.edit",
+        "task.spawn",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-22",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit:error",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-23",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "task.edit",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-24",
+      "auto": "e2e",
+      "status": "skipped",
+      "note": "runs the issue-7 and issue-14 suites in their own browsers; they write their own eval reports"
+    },
+    {
+      "id": "TC-25",
+      "auto": "e2e",
+      "status": "skipped",
+      "note": "a console check across the whole run, not an app action"
+    },
+    {
+      "id": "TC-26",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.become_oneoff",
+        "task.complete",
+        "task.delete",
+        "task.edit",
+        "task.reopen",
+        "task.spawn",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-27",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.complete",
+        "task.delete",
+        "task.edit:error",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-28",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.add:error",
+        "task.delete",
+        "task.edit",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-29",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.complete",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-30",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "task.edit",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-31",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.edit",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-32",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-33",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.delete",
+        "task.edit:error",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "TC-34",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.delete",
+        "task.edit",
+        "test.case_start",
+        "ui.filter_priority"
+      ]
+    },
+    {
+      "id": "TC-35",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
+      ]
+    }
+  ],
+  "malformed": [],
+  "unknown": []
+}

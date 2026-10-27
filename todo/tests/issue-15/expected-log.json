@@ -1,0 +1,42 @@
+{
+  "_about": "Actions the eval requires in the log for each e2e case of the task-priority suite (see test-cases.md, 'Expected log'). Syntax: action[:error][@actor]. [] = the case only has to have run; skip = not judged from the log.",
+  "TC-01": [],
+  "TC-02": ["task.add@user"],
+  "TC-03": ["task.add@user"],
+  "TC-04": ["ui.filter_priority@user"],
+  "TC-05": ["ui.filter_priority@user", "ui.filter_status@user", "ui.filter_tag@user"],
+  "TC-06": [],
+  "TC-07": [],
+  "TC-08": ["task.edit@user"],
+  "TC-09": [],
+  "TC-10": ["task.edit@user"],
+  "TC-11": [],
+  "TC-12": ["task.edit@user"],
+  "TC-13": [],
+  "TC-14": ["task.complete@user", "task.spawn@user"],
+  "TC-15": ["task.edit@user"],
+  "TC-16": ["task.edit@api"],
+  "TC-17": [],
+  "TC-18": [],
+  "TC-19": [],
+  "TC-20": ["task.edit@user"],
+  "TC-21": ["task.edit@user", "task.spawn@user"],
+  "TC-22": ["task.edit:error@api"],
+  "TC-23": ["task.edit@user"],
+  "TC-24": {
+    "skip": "runs the issue-7 and issue-14 suites in their own browsers; they write their own eval reports"
+  },
+  "TC-25": {
+    "skip": "a console check across the whole run, not an app action"
+  },
+  "TC-26": ["task.edit@user", "task.become_oneoff@user"],
+  "TC-27": ["task.edit:error@user"],
+  "TC-28": ["task.add:error@api", "task.edit@user"],
+  "TC-29": ["task.complete@user"],
+  "TC-30": ["task.edit@user"],
+  "TC-31": ["task.edit@user"],
+  "TC-32": [],
+  "TC-33": ["task.edit:error@user"],
+  "TC-34": ["task.edit@user"],
+  "TC-35": ["task.edit@user"]
+}

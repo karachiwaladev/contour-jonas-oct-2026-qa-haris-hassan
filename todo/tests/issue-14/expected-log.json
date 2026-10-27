@@ -1,0 +1,43 @@
+{
+  "_about": "Actions the eval requires in the log for each end-to-end case of this suite (see test-cases.md, 'Expected log'). A list means each action must appear at least once among entries tagged with that case; [] means the case only has to have run (its test.case_start marker). {\"skip\": reason} means the case can't be judged from the log by design.",
+  "TC-01": ["task.add@user"],
+  "TC-02": ["task.complete@user", "task.reopen@user"],
+  "TC-03": ["task.complete", "task.spawn", "task.reopen", "task.copy_removed"],
+  "TC-04": ["task.stop_repeating", "task.become_oneoff"],
+  "TC-05": ["task.delete@user"],
+  "TC-06": ["task.add@api", "task.complete@api", "task.add@user"],
+  "TC-07": ["task.add"],
+  "TC-08": ["ui.filter_status", "ui.filter_tag"],
+  "TC-09": [],
+  "TC-10": ["log.export"],
+  "TC-11": ["log.clear"],
+  "TC-12": ["task.add"],
+  "TC-13": ["task.add:error"],
+  "TC-14": [],
+  "TC-15": ["task.add"],
+  "TC-16": {
+    "skip": "logging is made unavailable in this case on purpose, so it can leave no entries"
+  },
+  "TC-17": [],
+  "TC-18": ["task.add", "task.complete"],
+  "TC-19": [],
+  "TC-20": [],
+  "TC-26": {
+    "skip": "runs the issue-7 suite in its own browser; that run writes its own eval report"
+  },
+  "TC-27": {
+    "skip": "a console check across the whole run, not an app action"
+  },
+  "TC-29": ["task.delete@api"],
+  "TC-30": [],
+  "TC-31": [],
+  "TC-32": ["task.add"],
+  "TC-33": ["task.delete@api"],
+  "TC-36": ["task.add@user"],
+  "TC-37": [],
+  "TC-38": ["task.delete:error@user"],
+  "TC-39": {
+    "skip": "the logger is blocked on purpose in this case, so it can leave no entries"
+  },
+  "TC-40": []
+}

@@ -5,17 +5,17 @@
 //   SCREENSHOTS=<dir> node ... run.js         # also save screenshots of key states
 // Needs Node 18+, Python 3 (static server) and Chrome (CHROME_PATH to override).
 
-const { spawn } = require("child_process");
 const fs = require("fs");
-const net = require("net");
-const os = require("os");
 const path = require("path");
+const { startBrowser, runEval: runEvalShared } = require("../lib/harness");
 
 const TODO_DIR = path.resolve(__dirname, "..", "..");
 const results = [];
+// App log entries collected during the e2e run, for the eval (ticket #14).
+const collected = new Map();
+let collect = async () => {};
 const check = (id, name, cond, detail = "") =>
   results.push({ id, ok: !!cond, line: `${cond ? "PASS" : "FAIL"} ${id} ${name}${!cond && detail ? " :: " + detail : ""}` });
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------------------------------------------------------------- unit
 function unit() {
@@ -78,53 +78,12 @@ function unit() {
 }
 
 // ---------------------------------------------------------------- e2e
-function findChrome() {
-  const c = [process.env.CHROME_PATH,
-    "C:/Program Files/Google/Chrome/Application/chrome.exe",
-    "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe",
-    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-    "/usr/bin/google-chrome", "/usr/bin/chromium", "/usr/bin/chromium-browser"].filter(Boolean);
-  return c.find((p) => fs.existsSync(p));
-}
-const freePort = () => new Promise((res) => { const s = net.createServer(); s.listen(0, "127.0.0.1", () => { const p = s.address().port; s.close(() => res(p)); }); });
-
 async function e2e() {
-  const chromePath = findChrome();
-  if (!chromePath) { check("E2E", "Chrome found", false, "set CHROME_PATH"); return; }
-  const httpPort = await freePort(), cdpPort = await freePort();
-  const profile = fs.mkdtempSync(path.join(os.tmpdir(), "todo-issue7-"));
   const shotsDir = process.env.SCREENSHOTS;
-  const python = process.platform === "win32" ? "python" : "python3";
-  const server = spawn(python, ["-m", "http.server", String(httpPort), "--bind", "127.0.0.1", "--directory", TODO_DIR], { stdio: "ignore" });
-  const chrome = spawn(chromePath, ["--headless=new", "--disable-gpu", `--remote-debugging-port=${cdpPort}`,
-    `--user-data-dir=${profile}`, "--no-first-run", "--window-size=760,900", "about:blank"], { stdio: "ignore" });
-  const BASE = `http://127.0.0.1:${httpPort}`;
-  const consoleErrors = [];
-  let ws;
+  let b;
+  try { b = await startBrowser({ shotsDir }); } catch (e) { check("E2E", "browser starts", false, e.message); return; }
+  const { nav, ev, shot, consoleErrors } = b;
   try {
-    for (let i = 0; i < 50; i++) { try { await (await fetch(BASE + "/index.html")).text(); break; } catch { await sleep(200); } }
-    let targets = [];
-    for (let i = 0; i < 50 && !targets.length; i++) { try { targets = (await (await fetch(`http://127.0.0.1:${cdpPort}/json/list`)).json()).filter((t) => t.type === "page"); } catch {} if (!targets.length) await sleep(200); }
-    ws = new WebSocket(targets[0].webSocketDebuggerUrl);
-    await new Promise((r) => (ws.onopen = r));
-    let nextId = 1; const pending = new Map(); const waiters = [];
-    ws.onmessage = (m) => {
-      const msg = JSON.parse(m.data);
-      if (msg.id && pending.has(msg.id)) { pending.get(msg.id)(msg); pending.delete(msg.id); return; }
-      if (msg.method === "Runtime.consoleAPICalled" && ["error", "warning"].includes(msg.params.type))
-        consoleErrors.push(msg.params.type + ": " + msg.params.args.map((a) => a.value ?? a.description).join(" "));
-      if (msg.method === "Runtime.exceptionThrown") consoleErrors.push("exception: " + (msg.params.exceptionDetails.exception?.description || msg.params.exceptionDetails.text));
-      if (msg.method === "Log.entryAdded" && msg.params.entry.level === "error" && !/favicon/.test(msg.params.entry.url || "")) consoleErrors.push("log: " + msg.params.entry.text);
-      for (const w of waiters.splice(0)) if (w.method === msg.method) w.resolve(); else waiters.push(w);
-    };
-    const send = (method, params = {}) => new Promise((resolve, reject) => { const id = nextId++; pending.set(id, (msg) => (msg.error ? reject(new Error(method + ": " + msg.error.message)) : resolve(msg.result))); ws.send(JSON.stringify({ id, method, params })); });
-    const waitFor = (method) => new Promise((resolve) => waiters.push({ method, resolve }));
-    await send("Page.enable"); await send("Runtime.enable"); await send("Log.enable");
-    await send("Emulation.setDeviceMetricsOverride", { width: 760, height: 900, deviceScaleFactor: 1, mobile: false });
-    const nav = async (url) => { const loaded = waitFor("Page.loadEventFired"); await send("Page.navigate", { url: BASE + url }); await loaded; await sleep(400); };
-    const ev = async (expr) => { const r = await send("Runtime.evaluate", { expression: `(async () => { ${expr} })()`, awaitPromise: true, returnByValue: true }); if (r.exceptionDetails) throw new Error(r.exceptionDetails.exception?.description || r.exceptionDetails.text); return r.result.value; };
-    const shot = async (name) => { if (!shotsDir) return; fs.mkdirSync(shotsDir, { recursive: true }); const { cssContentSize } = await send("Page.getLayoutMetrics"); const { data } = await send("Page.captureScreenshot", { format: "png", captureBeyondViewport: true, clip: { x: 0, y: 0, width: 760, height: Math.ceil(Math.max(cssContentSize.height, 600)), scale: 1 } }); fs.writeFileSync(path.join(shotsDir, name), Buffer.from(data, "base64")); };
-
     // Seed IndexedDB at a given schema version with raw records (bypasses the app).
     // Runs on a blank same-origin page so the app isn't holding the database open.
     const seed = async (version, records) => { await nav("/tests/issue-7/blank.html"); return ev(`
@@ -148,52 +107,68 @@ async function e2e() {
       reset: async () => { for (const t of await TodoDB.all()) await TodoDB.remove(t.id); await render(); await T.wait(); },
     };`;
     const open = async () => { await nav("/index.html"); await ev(H); };
+    // Eval support (ticket #14): before each case, collect the app log so far,
+    // then tag the next case's entries with its ID.
+    collect = async () => {
+      try { for (const e of await ev(`await TodoLog.flush(); return await TodoLog.all();`)) collected.set(`${e.sessionId}:${e.seq}`, e); } catch {}
+    };
+    const tag = async (id) => { await collect(); await ev(`TodoLog.setTestCase(${JSON.stringify(id)});`); };
 
     // TC-18: v2 -> v3 migration
     await seed(2, [
       { title: "Old A", done: false, createdAt: 1000, due: null, tags: ["home"] },
       { title: "Old B", done: true, createdAt: 2000, due: "2026-01-02", tags: [] }]);
     await open();
-    let r = await ev(`const all = await T.all(); return { all, titles: T.titles(), badges: document.querySelectorAll(".repeat").length };`);
+    let r;
+    await tag("TC-18");
+    r = await ev(`const all = await T.all(); return { all, titles: T.titles(), badges: document.querySelectorAll(".repeat").length };`);
     check("TC-18", "v2 data migrates to v3 with repeat none, no loss",
       r.all.length === 2 && r.all.every((t) => t.repeat === "none") && r.all.find((t) => t.title === "Old A").tags[0] === "home" && r.badges === 0, JSON.stringify(r));
 
     // TC-01
+    await tag("TC-01");
     r = await ev(`const s = document.getElementById("task-repeat"); return s ? { opts: [...s.options].map(o => o.value + ":" + o.textContent), value: s.value } : null;`);
     check("TC-01", "Repeat select None/Daily/Weekly/Monthly, default None",
       r && JSON.stringify(r.opts) === JSON.stringify(["none:None", "daily:Daily", "weekly:Weekly", "monthly:Monthly"]) && r.value === "none", JSON.stringify(r));
 
     // TC-02, TC-03, TC-06
+    await tag("TC-02");
     r = await ev(`await T.reset(); await T.add("Water plants", T.ymd(0), "garden", "daily");
       const all = await T.all(); const it = T.items("Water plants")[0];
       return { stored: all[0], badge: it && it.querySelector(".repeat")?.textContent, day: Number(T.ymd(0).slice(8)) };`);
     check("TC-02", "daily task created with badge, repeat, anchorDay",
       r.stored && r.stored.repeat === "daily" && r.stored.anchorDay === r.day && /🔁\s*Daily/.test(r.badge || ""), JSON.stringify(r));
     await shot("01-recurring-task-created.png");
+    await tag("TC-03");
     r = await ev(`await T.tick("Water plants"); const all = await T.all();
       const open = all.filter(t => t.title === "Water plants" && !t.done), done = all.filter(t => t.title === "Water plants" && t.done);
       return { open, done, tomorrow: T.ymd(1) };`);
     check("TC-03", "ticking daily keeps done occurrence and creates next due T+1",
       r.done.length === 1 && r.open.length === 1 && r.open[0].due === r.tomorrow && r.open[0].repeat === "daily" && JSON.stringify(r.open[0].tags) === '["garden"]', JSON.stringify(r));
     await shot("02-tick-creates-next-occurrence.png");
+    await tag("TC-06");
     r = await ev(`await T.status("completed"); const t = T.titles(); await T.status("all"); return t;`);
     check("TC-06", "completed occurrence kept in Completed", JSON.stringify(r) === '["Water plants"]', JSON.stringify(r));
 
     // TC-14 undo
+    await tag("TC-14");
     r = await ev(`const doneItem = T.items("Water plants").find(l => l.classList.contains("done")); doneItem.querySelector("input[type=checkbox]").click(); await T.wait();
       const all = (await T.all()).filter(t => t.title === "Water plants"); return { count: all.length, open: all.filter(t => !t.done).length, due: all.map(t => t.due) };`);
     check("TC-14", "unticking removes the auto-created open copy", r.count === 1 && r.open === 1, JSON.stringify(r));
 
     // TC-15 concurrent setDone
+    await tag("TC-15");
     r = await ev(`await T.reset(); await T.add("Vitamins", T.ymd(0), "", "daily"); const id = (await T.all())[0].id;
       await Promise.all([TodoDB.setDone(id, true), TodoDB.setDone(id, true)]); await render(); await T.wait();
       return (await T.all()).filter(t => t.title === "Vitamins").length;`);
     check("TC-15", "concurrent completes create exactly one copy", r === 2, String(r));
 
     // TC-04 weekly, TC-05 monthly
+    await tag("TC-04");
     r = await ev(`await T.reset(); await T.add("Team sync", T.ymd(2), "work", "weekly"); await T.tick("Team sync");
       const o = (await T.all()).find(t => t.title === "Team sync" && !t.done); return { o, exp: T.ymd(9) };`);
     check("TC-04", "weekly next = T+9 with tags", r.o && r.o.due === r.exp && r.o.repeat === "weekly" && r.o.tags[0] === "work", JSON.stringify(r));
+    await tag("TC-05");
     r = await ev(`await T.reset(); const due = T.ymd(3); await T.add("Pay rent", due, "", "monthly"); await T.tick("Pay rent");
       const o = (await T.all()).find(t => t.title === "Pay rent" && !t.done);
       const [y, m, d] = due.split("-").map(Number); const last = new Date(y, m + 1, 0).getDate(); const ny = m === 12 ? y + 1 : y, nm = m === 12 ? 1 : m + 1;
@@ -202,16 +177,19 @@ async function e2e() {
     check("TC-05", "monthly next = same day next month", r.got === r.exp, JSON.stringify(r));
 
     // TC-10 default due today
+    await tag("TC-10");
     r = await ev(`await T.reset(); await T.add("Stretch", "", "", "daily"); const t = (await T.all())[0]; const it = T.items("Stretch")[0];
       return { due: t.due, today: T.ymd(0), badge: it.querySelector(".due")?.textContent };`);
     check("TC-10", "repeat with no due date defaults to today", r.due === r.today && r.badge === "Due today", JSON.stringify(r));
 
     // TC-13 e2e missed occurrences
+    await tag("TC-13");
     r = await ev(`await T.reset(); await T.add("Journal", T.ymd(-5), "", "daily"); await T.tick("Journal");
       const o = (await T.all()).find(t => t.title === "Journal" && !t.done); return { got: o && o.due, exp: T.ymd(0) };`);
     check("TC-13", "overdue daily skips missed occurrences to today", r.got === r.exp, JSON.stringify(r));
 
     // TC-07 stop repeating
+    await tag("TC-07");
     r = await ev(`await T.reset(); await T.add("Gym", T.ymd(1), "", "weekly");
       const btn = T.items("Gym")[0].querySelector(".stop-repeat"); if (!btn) return { noButton: true }; btn.click(); await T.wait();
       const after = { repeat: (await T.all())[0].repeat, badge: !!T.items("Gym")[0].querySelector(".repeat"), btn: !!T.items("Gym")[0].querySelector(".stop-repeat") };
@@ -219,6 +197,7 @@ async function e2e() {
     check("TC-07", "Stop repeating converts to normal task; no copy on tick", r.repeat === "none" && !r.badge && !r.btn && r.count === 1, JSON.stringify(r));
 
     // TC-08 delete ends series, TC-09 normal task
+    await tag("TC-08");
     r = await ev(`await T.reset(); await T.add("Laundry", T.ymd(0), "", "weekly"); await T.add("Plain", T.ymd(0), "", "none");
       T.items("Laundry")[0].querySelector(".delete").click(); await T.wait(); const afterDelete = (await T.all()).map(t => t.title);
       await T.tick("Plain"); const afterTick = (await T.all()).length; return { afterDelete, afterTick };`);
@@ -226,6 +205,7 @@ async function e2e() {
     check("TC-09", "non-recurring tick creates no copy", r.afterTick === 1, JSON.stringify(r));
 
     // TC-19 filters, TC-20 sort + badges
+    await tag("TC-19");
     r = await ev(`await T.reset();
       await T.add("Overdue weekly", T.ymd(-1), "work", "weekly"); await T.add("Today daily", T.ymd(0), "home", "daily");
       await T.add("Later monthly", T.ymd(5), "work", "monthly"); await T.add("Undated", "", "misc", "none");
@@ -241,6 +221,7 @@ async function e2e() {
     await shot("03-recurring-badges-sorted.png");
 
     // TC-21 XSS through the recurrence path
+    await tag("TC-21");
     r = await ev(`await T.reset(); const title = "<img src=x onerror=window.pwned=1>"; await T.add(title, T.ymd(0), "<b>x</b>", "daily"); await T.tick(title);
       const items = T.items(title); return { n: items.length, injected: !!document.querySelector("#task-list img, #task-list b"), chips: items.map(i => i.querySelector(".chip")?.textContent), pwned: !!window.pwned };`);
     check("TC-21", "HTML in recurring title/tags renders as text in both occurrences",
@@ -253,6 +234,7 @@ async function e2e() {
       { title: "Bad due A", done: false, createdAt: 3, due: "not-a-date", tags: [], repeat: "daily", anchorDay: 5 },
       { title: "Bad due B", done: false, createdAt: 4, due: "2026-13-45", tags: [], repeat: "none", anchorDay: 5 }]);
     await open();
+    await tag("TC-22");
     r = await ev(`const r = { titles: T.titles().sort(), badges: document.querySelectorAll(".repeat").length, injected: !!document.querySelector("#task-list img"), pwned: !!window.pwned,
         dueBadges: ["Bad due A", "Bad due B"].map(t => !!T.items(t)[0]?.querySelector(".due")) };
       await T.tick("Evil repeat"); await T.tick("Yearly"); r.afterTick = (await T.all()).length;
@@ -263,6 +245,7 @@ async function e2e() {
       JSON.stringify(r.dueBadges) === "[false,false]" && r.badCopyDue === r.tomorrow, JSON.stringify(r));
 
     // TC-16 persistence
+    await tag("TC-16");
     await ev(`await T.reset(); await T.add("Persist me", T.ymd(0), "keep", "weekly");`);
     await open();
     r = await ev(`const it = T.items("Persist me")[0]; const badge = it && it.querySelector(".repeat")?.textContent; await T.tick("Persist me");
@@ -271,6 +254,7 @@ async function e2e() {
     await shot("04-after-reload.png");
 
     // TC-26..TC-29: regression cases from the code review of PR #11
+    await tag("TC-26");
     r = await ev(`await T.reset(); await T.add("Series", T.ymd(0), "", "daily");
       const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
       const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.setDone(B, true);
@@ -280,6 +264,7 @@ async function e2e() {
     check("TC-26", "re-ticking an older occurrence does not start a second series",
       r.total === 3 && r.open === 1 && r.aDone === true, JSON.stringify(r));
 
+    await tag("TC-27");
     r = await ev(`await T.reset(); await T.add("Weekly", T.ymd(1), "", "weekly");
       const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
       const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.stopRepeating(B);
@@ -289,6 +274,7 @@ async function e2e() {
     check("TC-27", "undo keeps a copy whose series was stopped; series stays ended",
       r.total === 2 && r.bExists && r.bRepeat === "none" && r.repeatingOpen === 0, JSON.stringify(r));
 
+    await tag("TC-28");
     r = await ev(`await T.reset(); await T.add("Deleted copy", T.ymd(0), "", "daily");
       const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
       const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.remove(B);
@@ -296,6 +282,7 @@ async function e2e() {
       return (await T.all()).length;`);
     check("TC-28", "undo after the copy was deleted does not restart the series", r === 1, String(r));
 
+    await tag("TC-30");
     r = await ev(`await T.reset(); await T.add("Head check", T.ymd(0), "", "daily");
       const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
       const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.remove(B);
@@ -311,6 +298,7 @@ async function e2e() {
     check("TC-30", "only the open head of a series shows 🔁 / Stop repeating",
       !r.reopened.badge && !r.reopened.stop && !r.history.doneBadge && r.history.openBadge && r.count === 1, JSON.stringify(r));
 
+    await tag("TC-32");
     r = await ev(`await T.reset(); await T.add("Nested", T.ymd(0), "", "daily");
       const ids = [(await T.all())[0].id];
       for (let i = 0; i < 3; i++) { await TodoDB.setDone(ids[i], true); ids.push((await T.all()).find(t => !ids.includes(t.id)).id); }
@@ -320,6 +308,7 @@ async function e2e() {
     check("TC-32", "nested undo leaves exactly one live series head",
       r.badges === 1 && r.heads.length === 1 && r.heads[0] === r.D, JSON.stringify(r));
 
+    await tag("TC-33");
     r = await ev(`await T.reset(); await T.add("One-off", T.ymd(0), "", "daily");
       const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
       const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.setDone(B, true);
@@ -329,6 +318,7 @@ async function e2e() {
     check("TC-33", "reopened past occurrence becomes a one-off; re-tick creates nothing",
       r.aRepeat === "none" && r.aDone === false && !r.badge && r.total === 3, JSON.stringify(r));
 
+    await tag("TC-34");
     r = await ev(`await T.reset(); await T.add("Before", "", "", "none");
       await new Promise(res => { const d = indexedDB.deleteDatabase("todo-app"); d.onsuccess = d.onerror = d.onblocked = res; });
       let err = null; try { await TodoDB.add("After", {}); await render(); await T.wait(); } catch (e) { err = String(e); }
@@ -336,6 +326,7 @@ async function e2e() {
     check("TC-34", "works after the database is deleted/upgraded elsewhere",
       !r.err && JSON.stringify(r.titles) === '["After"]', JSON.stringify(r));
 
+    await tag("TC-35");
     r = await ev(`await T.reset(); const realAdd = TodoDB.add;
       TodoDB.add = () => Promise.reject(new Error("TC-35 injected failure"));
       document.getElementById("task-title").value = "Keep me"; document.getElementById("new-task").requestSubmit(); await T.wait(400);
@@ -346,6 +337,7 @@ async function e2e() {
       r.visible && /add the task/i.test(r.text || "") && r.kept === "Keep me", JSON.stringify(r));
     await ev(`document.getElementById("task-title").value = ""; const el = document.querySelector("[role=alert]"); if (el) el.hidden = true;`);
 
+    await tag("TC-37");
     r = await ev(`await T.reset(); await T.add("Real", "", "", "none"); const realAll = TodoDB.all;
       TodoDB.all = () => Promise.reject(new Error("TC-37 injected failure")); await render();
       const shown = !document.getElementById("error").hidden;
@@ -354,6 +346,7 @@ async function e2e() {
     check("TC-37", "error box clears once loading works again",
       r.shown && r.hiddenAfter && JSON.stringify(r.titles) === '["Real"]', JSON.stringify(r));
 
+    await tag("TC-38");
     r = await ev(`const realAll = TodoDB.all; let n = 0;
       TodoDB.all = async () => { n++; if (n === 1) { await T.wait(400);
         return [{ id: 999, title: "Stale", done: false, createdAt: 1, due: null, tags: [], repeat: "none", anchorDay: null, nextId: null, spawnedFrom: null }]; }
@@ -362,6 +355,7 @@ async function e2e() {
       return T.titles();`);
     check("TC-38", "an older redraw cannot overwrite a newer one", JSON.stringify(r) === '["Real"]', JSON.stringify(r));
 
+    await tag("TC-39");
     r = await ev(`await T.reset(); await T.add("Loss", T.ymd(0), "", "daily");
       const A = (await T.all())[0].id; await TodoDB.setDone(A, true);
       const B = (await T.all()).find(t => t.id !== A).id; await TodoDB.stopRepeating(B);
@@ -369,6 +363,7 @@ async function e2e() {
       const b = (await T.all()).find(t => t.id === B); return { bExists: !!b, bOpen: !!b && !b.done, total: (await T.all()).length };`);
     check("TC-39", "reopening never deletes a separate task (data loss)", r.bExists && r.bOpen && r.total === 2, JSON.stringify(r));
 
+    await tag("TC-40");
     r = await ev(`await T.reset(); const realAdd = TodoDB.add;
       TodoDB.add = async (...a) => { await T.wait(300); return realAdd.apply(TodoDB, a); };
       const f = document.getElementById("new-task"), i = document.getElementById("task-title");
@@ -376,6 +371,7 @@ async function e2e() {
       TodoDB.add = realAdd; return (await T.all()).filter(t => t.title === "Buy milk").length;`);
     check("TC-40", "fast double submit adds the task once", r === 1, String(r));
 
+    await tag("TC-41");
     r = await ev(`await T.reset(); const realAdd = TodoDB.add;
       TodoDB.add = async (...a) => { await T.wait(300); return realAdd.apply(TodoDB, a); };
       const f = document.getElementById("new-task"), i = document.getElementById("task-title");
@@ -387,6 +383,7 @@ async function e2e() {
     await seed(3, [
       { title: "Tags", done: false, createdAt: 1, due: null, tags: [null, {}, 5, "ok", true, ["x"]], repeat: "none", anchorDay: null }]);
     await open();
+    await tag("TC-36");
     r = await ev(`return [...document.querySelectorAll("#task-list .chip")].map(c => c.textContent);`);
     check("TC-36", "tampered tag values dropped; numbers kept as text", JSON.stringify(r) === '["#5","#ok"]', JSON.stringify(r));
 
@@ -394,6 +391,7 @@ async function e2e() {
       { title: "Bad monthly", done: false, createdAt: "oops", due: "bad", tags: [], repeat: "monthly", anchorDay: "x" },
       { title: "Normal", done: false, createdAt: 5, due: null, tags: [], repeat: "none", anchorDay: null }]);
     await open();
+    await tag("TC-29");
     r = await ev(`const before = await T.all(); const r = { titles: T.titles(), createdAtOk: before.every(t => Number.isFinite(t.createdAt)) };
       await T.tick("Bad monthly"); const copy = (await T.all()).find(t => t.title === "Bad monthly" && !t.done);
       r.copy = copy; r.todayDay = Number(T.ymd(0).slice(8)); r.dueValid = !!copy && Recurrence.isValidDate(copy.due); return r;`);
@@ -414,15 +412,20 @@ async function e2e() {
     // TC-35 and TC-37 inject storage failures on purpose; their logged errors are expected.
     const unexpected = consoleErrors.filter((m) => !/TC-3[57] injected failure/.test(m));
     check("TC-24", "no console errors or exceptions", unexpected.length === 0, unexpected.join(" | "));
-    try { ws && ws.close(); } catch {}
-    chrome.kill(); server.kill();
-    await sleep(300); try { fs.rmSync(profile, { recursive: true, force: true }); } catch {}
+    await collect();
+    await b.close();
   }
+}
+
+// Eval (ticket #14): check the collected app log against test-cases.md and
+// expected-log.json, so the run proves every e2e case ran and did what it should.
+function runEval() {
+  runEvalShared({ collected, suiteDir: __dirname, suite: "issue-7", check });
 }
 
 (async () => {
   unit();
-  if (!process.argv.includes("--unit")) await e2e();
+  if (!process.argv.includes("--unit")) { await e2e(); runEval(); }
   const order = (id) => Number((id.match(/\d+/) || [999])[0]);
   results.sort((a, b) => order(a.id) - order(b.id));
   for (const r of results) console.log(r.line);
