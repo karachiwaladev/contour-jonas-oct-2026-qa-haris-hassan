@@ -328,6 +328,7 @@ async function e2e() {
       await open();
       await search("milk"); await settle();
       await ev(`await T.filter("due-filter", "overdue");`);
+      const before20 = await ev(`return { v: T.search().value, due: document.getElementById("due-filter").value, n: T.titles().length };`);
       await tag("TC-20");
       await send("Page.reload", {});
       await sleep(800);
@@ -335,7 +336,8 @@ async function e2e() {
       await sleep(400); await ev(H);
       r = await ev(`const all = await TodoDB.all(); return { v: T.search().value, due: document.getElementById("due-filter").value, n: T.titles().length, total: all.length, c: T.count() };`);
       check("TC-20", "after reload: box empty, Due Any, all tasks show",
-        r.v === "" && r.due === "" && r.n === r.total && r.total === 3 && !/showing/.test(r.c), JSON.stringify(r));
+        before20.v === "milk" && before20.due === "overdue" && before20.n < r.total &&
+        r.v === "" && r.due === "" && r.n === r.total && r.total > 0 && !/showing/.test(r.c), JSON.stringify({ before20, r }));
       await collect();
     });
 
