@@ -222,6 +222,7 @@ After each pass, post one short summary with:
 - PRs waiting for review, with links. Say which were approved and merged, revised after review, or still waiting.
 - Anything skipped, waiting for the user, or left as "needs a human", and why.
 - `No open issues` if there was nothing to do.
+- At a checkpoint, the one-line compact reminder from *Keep the context small*.
 
 ## 6. Keep looping
 
@@ -236,3 +237,16 @@ Schedule only once. If CronList already shows a factory-loop job, don't add anot
 - The cadence.
 - That recurring jobs expire after 7 days and last only for this session.
 - That they can stop it by asking to stop the factory loop, which runs CronDelete on that ID.
+
+### Keep the context small
+
+Every pass runs in the same session, so the context grows all day. If it fills up, each request fails with `Prompt is too long` and the loop stops. Nothing in this skill can run at that point, so act **before** the context is full:
+
+- **Keep idle passes small.** Use one `gh` call for PRs and one for issues. When nothing changed, report it in one line.
+- **Send heavy work to subagents.** Builds, test runs, code reviews and security scans go to a subagent, and only its summary comes back. Never paste whole logs, diffs or transcripts; use `tail`, `--name-only` or a count.
+- **Ask for a compact at checkpoints.** You can't run `/compact` yourself, because it's a built-in command the user runs. At these points, add one line to the report: *"Context is getting large: please run `/compact`, or start a fresh session and restart the loop with `/loop`."*
+  - After a build ticket is merged or handed over for review.
+  - After about 3 hours of one-minute passes.
+  - Whenever Claude Code warns that the context is nearly full.
+- **Keep the state on GitHub, not in the conversation.** Labels, ticket comments, pushed branches and PRs let a compacted or fresh session pick up where the last one stopped. Push and comment before suggesting a compact.
+- **Recommend auto-compact.** If the user has it off (`autoCompactEnabled: false`), suggest turning it on in `/config` so Claude Code compacts automatically before the limit.
