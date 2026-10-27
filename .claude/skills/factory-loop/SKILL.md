@@ -1,6 +1,6 @@
 ---
 name: factory-loop
-description: Work through a GitHub repo's open issues like a factory line — read each ticket, react 👍, then act on it: answer questions, carry out repo tasks (create/edit files, scaffold folders, docs, config), or, for building a project or feature, clarify → plan → get approval → write test cases → user reviews and approves the test cases → implement the tests → build → code review with the code-review skill → security scan with the claude-security plugin → execute all test cases in Chrome via chrome-devtools → attach results and screenshots. Every ticket that changes files gets its own branch when work starts and a pull request when it's done; the PR waits for manual review and approval, and only then is it merged into main and the ticket closed (changes requested are fixed on the same branch). Then it keeps polling for new tickets and for PR reviews. Never takes destructive actions. Use this whenever the user asks to process, answer, work through, build from, triage-and-close, or "loop over" GitHub issues/tickets in the current repo, or to keep watching the repo for new tickets, even if they don't say "factory-loop".
+description: Run this repo's software-factory loop over GitHub issues. It answers questions, does repo tasks, and builds features through a gated flow (plan and test-case approval, code review, security scan, browser tests), with one branch and PR per ticket that waits for manual approval before it's merged. Never takes destructive actions. Use this whenever the user asks to process, answer, work through, build from, triage-and-close, or "loop over" GitHub issues/tickets in the current repo, or to keep watching the repo for new tickets and PR reviews, even if they don't say "factory-loop".
 ---
 
 # Factory loop
@@ -8,7 +8,7 @@ description: Work through a GitHub repo's open issues like a factory line — re
 Process open GitHub issues end to end, then keep checking for new ones. Every ticket is acted on, not just answered:
 
 - **Question:** read → 👍 → answer in a comment → close.
-- **Action task:** read → 👍 → **new branch** → do it (files, folders, docs, config) → if any logic changed: **test cases → security scan → run tests** → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
+- **Action task:** read → 👍 → **new branch** → do it (files, folders, docs, config) → if any logic changed: **test cases → test-case approval → code review → security scan → run tests** → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
 - **Build task:** read → 👍 → clarify → plan → **plan approval** → **new branch** → **write test cases** → **test-case approval** → implement the tests → build → **code review (code-review)** → **security scan (claude-security)** → **execute all test cases** in the browser → screenshots → commit and push → **PR** → ⏸ **manual review** → approved → merge → closed.
 
 **Quality gates.** Nothing reaches a PR until it has passed all four:
@@ -60,7 +60,7 @@ Run `gh --version`. If `gh` isn't found, it may still be installed: a shell star
 - `%LOCALAPPDATA%\Microsoft\WinGet\Links\gh.exe`, `%USERPROFILE%\scoop\shims\gh.exe`, `C:\ProgramData\chocolatey\bin\gh.exe`
 - `where.exe gh`, or `command -v gh` in bash
 
-Use the full path for every later call in this session, e.g. `& "C:\Program Files\GitHub CLI\gh.exe" ...` in PowerShell. Only if `gh` is truly missing, tell the user to install it (`winget install GitHub.cli`) and stop.
+Use the full path for every later call in this session, e.g. `& "C:\Program Files\GitHub CLI\gh.exe" ...` in PowerShell. Subagents and skills you start (such as code-review) don't inherit it: bash in Git for Windows doesn't have `gh` on its PATH, so put the full path in their prompt or args. Only if `gh` is truly missing, tell the user to install it (`winget install GitHub.cli`) and stop.
 
 ## 2. Make sure gh is logged in
 
@@ -204,6 +204,8 @@ Always finish on `main`, because the Stop hook commits to whatever branch is che
 ### Posting comments
 
 Write the body to a file in the scratchpad and post it with `gh issue comment <n> --body-file <file>`. Passing it inline breaks on quotes and newlines in PowerShell 5.1, and so do `--jq` expressions with nested quotes. Pipe JSON to `ConvertFrom-Json` instead.
+
+Do the same for commit messages (`git commit -F <file>`) and for any script longer than a line. Inline quoting is the most common cause of failed commands here, and a commit message that merely mentions a blocked command, such as `rm -rf`, is stopped by the guard hook.
 
 ### Close
 
