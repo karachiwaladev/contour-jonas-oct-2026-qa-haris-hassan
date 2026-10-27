@@ -84,7 +84,11 @@
     return format(next);
   }
 
-  const api = { REPEATS, LABELS, normalizeRepeat, isValidDate, nextDue, today, clampAnchor, dayOf: (s) => (parse(s) || {}).d || null };
+  // "YYYY-MM-DD" `n` days after `ymd`, or null if `ymd` isn't a real date.
+  const addDaysYmd = (ymd, n) => { const p = parse(ymd); return p ? format(addDays(p, n)) : null; };
+
+  const api = { REPEATS, LABELS, normalizeRepeat, isValidDate, nextDue, today, clampAnchor, addDays: addDaysYmd,
+    dayOf: (s) => (parse(s) || {}).d || null };
   if (typeof module === "object" && module.exports) module.exports = api;
   else root.Recurrence = api;
 })(typeof window !== "undefined" ? window : globalThis);
