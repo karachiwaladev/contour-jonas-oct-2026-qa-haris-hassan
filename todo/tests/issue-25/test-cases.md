@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. Each end-to-end case is tagged in the action log and checked by the eval. **Expected log** uses the eval syntax `action[:error][@actor]`; `expected-log.json` holds the same expectations for the eval.
 
-**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-27** (31 cases). TC-32–TC-35 were added after the code review and **approved by hariscontour-gif on 2026-10-27**. Not executed yet.
+**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-27** (31 cases). TC-32–TC-35 were added after the code review and **approved by hariscontour-gif on 2026-10-27**. TC-36–TC-37 were added after the second code-review round and **approved by hariscontour-gif on 2026-10-27**. Not executed yet.
 
 `T` means today. "Search" is the new search box; "Due" is the new due-date filter.
 
@@ -43,6 +43,8 @@ Written from the approved plan **before** implementation. Each end-to-end case i
 | TC-33 | Clearing with ✕ logs at once (code review #2) | Regression | Search `milk` active and logged | Clear with the box's ✕ (the native `search` event), then change Due within 100 ms | `ui.filter_search` `cleared` is logged before `ui.filter_due` | ui.filter_search@user, ui.filter_due@user | e2e | ⏳ |
 | TC-34 | A bare `#` is no search (code review #3) | Edge | Tagged and untagged tasks; "Report" tagged `work` | Search `#`, then `#   `, then `# work` | `#` and `#   ` show every task with no "showing N"; `# work` shows only "Report" | ui.filter_search@user | e2e | ⏳ |
 | TC-35 | Matching doesn't depend on the browser's locale (code review #4) | Edge | Browser locale `tr-TR`; task "IDEA" tagged `inbox` | Search `#INBOX`, then `idea` | Both find the task | ui.filter_search@user | e2e | ⏳ |
+| TC-36 | Log entries keep the order things happened (code review round 2 #1) | Regression | Tasks exist | Add a task, type `milk`, and hide the page (visibilitychange) within 400 ms; separately, type `milk` and press **Clear log** within 400 ms | First: `task.add` is logged before `ui.filter_search`. Second: after the clear, the log holds only `log.clear`, with no search entry written before or after it | task.add@user, ui.filter_search@user | e2e | ⏳ |
+| TC-37 | A search typed during a failed reload still applies (code review round 2 #2) | Regression | Tasks "Milk" and "Bread"; the next `TodoDB.all()` rejects | Tick "Bread" (starts a reload that fails), then type `milk` straight away | The list shows only "Milk", filtered from the last loaded tasks, and the page error box explains the load failure | task.complete@user, ui.filter_search@user | e2e | ⏳ |
 
 ## Coverage
 
