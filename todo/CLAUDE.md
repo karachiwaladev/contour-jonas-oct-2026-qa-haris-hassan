@@ -11,8 +11,8 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 | File | Purpose |
 |------|---------|
 | `index.html` | Page markup; loads `recurrence.js`, `logger.js`, `db.js` and then `app.js` as classic scripts, so it works from `file://` |
-| `logger.js` | `TodoLog`: the action log in its own IndexedDB database `todo-logs` (`log`, `all`, `recent`, `count`, `exportJSONL`, `clear`, `setTestCase`, `flush`, `claimUserToken`). It keeps the last 1,000 entries and is best-effort, so it never breaks the app. |
-| `recurrence.js` | `Recurrence`: pure date math (`nextDue`, `normalizeRepeat`, `isValidDate`, `today`). It also loads in Node for unit tests. |
+| `logger.js` | `TodoLog`: the action log in its own IndexedDB database `todo-logs` (`log`, `logNow`, `all`, `recent`, `count`, `exportJSONL`, `clear`, `setTestCase`, `flush`, `claimUserToken`). It keeps the last 1,000 entries and is best-effort, so it never breaks the app. `logNow` starts the write synchronously, for page unload. |
+| `recurrence.js` | `Recurrence`: pure date math (`nextDue`, `normalizeRepeat`, `isValidDate`, `today`, `addDays`). It also loads in Node for unit tests. |
 | `db.js` | `TodoDB`: an IndexedDB wrapper (`all`, `add(title, {due, tags, repeat})`, `setDone`, `update(id, fields)`, `stopRepeating`, `remove`, `normalizeTags`). Changes pass their last argument through to the log as the actor. It cleans up stored records when reading them, and logs each change after it commits. |
 | `app.js` | UI: rendering, the add form, the search box, the status, tag, priority and due filters, the inline edit form, tag chips, and the priority, due and repeat badges |
 | `styles.css` | Styles, with light and dark themes |
@@ -43,13 +43,13 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 - The database open handles `onblocked` (another tab holds an older version: fail with a clear message, and close any late connection) and `onversionchange` (close and forget this connection so the next call reopens).
 - Storage failures are shown in the `#error` box (`role=alert`) as well as logged. `act()` wraps every storage action, and `render()` reports load failures there.
 - Filters (status AND one tag AND one priority AND due AND search) live in memory and reset on reload.
-- **Search:** the query is trimmed (blank = no search) and matched as a case-insensitive substring (`toLocaleLowerCase` + `includes`, never a RegExp) of the title or any tag; a leading `#` searches tag names only. Escape or the box's ✕ clears it.
+- **Search:** the query is trimmed (blank = no search) and matched as a case-insensitive substring (`toLowerCase` like `normalizeTags`, so the locale doesn't matter, + `includes`, never a RegExp) of the title or any tag; a leading `#` searches tag names only, and a bare `#` is no search. Escape or the box's ✕ clears it. Search and Due changes re-filter the last list read (`render({ reload: false })`); everything else re-reads storage.
 - **Due filter:** Overdue = open tasks due before today (like the red badge), Due today, Next 7 days (today to today + 6), No due date.
 - **Stored data is untrusted.** `TodoDB` coerces every field on read: the repeat value is checked against a fixed list, invalid dates become `null`, tags are cleaned up, `createdAt` becomes a number, `anchorDay` becomes 1–31 or `null`, and the ids (`nextId`/`spawnedFrom`) become integers or `null`.
 - **Action log:**
   - Each entry is `{ id, ts, sessionId, seq, actor: "user"|"api", automated, action, taskId, changes, outcome, error?, testCase? }`.
   - The actions are `task.add`, `task.complete`, `task.spawn`, `task.reopen`, `task.copy_removed`, `task.become_oneoff`, `task.stop_repeating`, `task.delete`, `task.edit`, `ui.filter_status`, `ui.filter_tag`, `ui.filter_priority`, `ui.filter_search`, `ui.filter_due`, `log.export`, `log.clear` and `test.case_start`.
-  - **No titles, tag text or search text are ever logged**; a tag filter or search is recorded only as `set` or `cleared`. A search is logged about 400 ms after typing stops, and only if the query changed.
+  - **No titles, tag text or search text are ever logged**; a tag filter or search is recorded only as `set` or `cleared`. A search is logged about 400 ms after typing stops, and only if its set/cleared state changed; clearing is logged at once. A pending search entry is written before any other entry from the page, and synchronously on `pagehide`, so it is never lost or out of order.
   - **Limits:** code driving the page's own buttons, such as an AI using the browser, is logged as `user`; `automated: true` marks a browser under automation. The log is client-side and best-effort, so it isn't tamper-proof against code running in the page.
   - **Attribution:** an entry is `user` only when it carries the private token from `TodoLog.claimUserToken()`, which `app.js` claims once and keeps in its closure. It passes the token to `TodoDB` methods and `TodoLog.log`. Every other caller, even one passing `{ actor: "user" }`, is logged as `api`.
   - **Eval expectations** use the syntax `action[:error][@actor]`, e.g. `task.add@user` or `task.delete:error@user`. Only successful entries satisfy a plain action, and a failed action that a case doesn't expect makes it fail (`unexpected-error`).
@@ -59,7 +59,7 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 
 ## Tests
 
-`node todo/tests/issue-25/run.js` runs the search and due-filter suite (TC-01–TC-31). Its TC-31 runs the issue-15 suite, which runs issue-14 and issue-7, so one command checks everything (`--skip-regression` skips it).
+`node todo/tests/issue-25/run.js` runs the search and due-filter suite (TC-01–TC-35). Its TC-31 runs the issue-15 suite, which runs issue-14 and issue-7, so one command checks everything (`--skip-regression` skips it).
 
 `node todo/tests/issue-15/run.js` runs the task-priority suite (TC-01–TC-35). Its TC-24 runs the issue-14 suite, which in turn runs issue-7, so one command checks everything.
 
