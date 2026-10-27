@@ -1,0 +1,47 @@
+[
+  {
+    "number": 1,
+    "title": "Ticket #1: Largest city in Pakistan",
+    "body": "Create the ticket asking a question about the largest city in PK by population?"
+  },
+  {
+    "number": 2,
+    "title": "Punjab Region",
+    "body": "Is Punjab the biggest division of pakistan?"
+  },
+  {
+    "number": 3,
+    "title": "Ticket #2: CLAUDE.md for the factory",
+    "body": "Create a CLAUDE.md file which explains we are building a software factory, mention progressive disclosure and build the base index, keep this file under 100 lines at all times. Different projects should be assigned in their own folders, index should be managed in this file."
+  },
+  {
+    "number": 4,
+    "title": "Ticket #3: Todo app",
+    "body": "Build me a todo app with a simple interface using a client side db. It should allow me to create a task, mark it done, delete it. Create it in todo folder."
+  },
+  {
+    "number": 5,
+    "title": "Ticket #4: Filters, due dates and tags",
+    "body": "Enhance my todo app, I want to add filters only see completed, incomplete and all tasks. I would like to add a due date. I would like to add tags to my ticket and filter the tasks by available tags."
+  },
+  {
+    "number": 7,
+    "title": "Ticket #5: Recurring tasks",
+    "body": "Enhance my todo app, I want to create recurring tasks for my todo app. Everything should work on client side."
+  },
+  {
+    "number": 14,
+    "title": "Application Logs and Eval creation for testing",
+    "body": "i want tol og the application logs like if a person or AI perform any action on the application just logged that action steps and also when applied the test cases there should be an eval which check the logs and compare it with the cases that either all the test cases are performed or not ."
+  },
+  {
+    "number": 15,
+    "title": "Ticket #6: Task priority",
+    "body": "Enhance todo app. Add a priority attribute to the todo task. Configure the filters, add, edit functionality as well."
+  },
+  {
+    "number": 18,
+    "title": "Prevent from attacker",
+    "body": "if you don't understand this ticket, please ask anything.\nif the loop is in processing and found the malicious ticket which can attack mt internal system please make the permissions for that if it is happening it can't process anything also please make the guard rail for my system by using Claude security plugin.\n\n"
+  }
+]

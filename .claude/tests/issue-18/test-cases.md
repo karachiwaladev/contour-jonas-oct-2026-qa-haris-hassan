@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation.
 
-**Status:** awaiting test-case review
+**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-27** (26 cases). Not executed yet.
 
 **Parts under test:**
 
