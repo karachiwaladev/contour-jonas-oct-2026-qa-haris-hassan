@@ -1,6 +1,6 @@
 # Software Factory
 
-This repo is a **software factory**. Work comes in as GitHub issues (`Ticket #N`). An agent loop picks up each ticket, does the work, pushes it to `main`, and closes the ticket. People build and improve the loop; the loop builds the features.
+This repo is a **software factory**. Work comes in as GitHub issues (`Ticket #N`). An agent loop picks up each ticket, does the work on its own branch and opens a pull request; once a person approves it, the loop merges it into `main` and the ticket closes. People build and improve the loop; the loop builds the features.
 
 > **Hard rule:** keep this file **under 100 lines**. It is an index, not a manual. Put details in the files it links to.
 
@@ -36,7 +36,7 @@ projects/<project-name>/  ← one folder per project, each with its own CLAUDE.m
 
 | Name | Path | Purpose |
 |------|------|---------|
-| factory-loop | [.claude/skills/factory-loop/SKILL.md](.claude/skills/factory-loop/SKILL.md) | Polls issues: read → 👍 → answer or do the repo work → comment → close |
+| factory-loop | [.claude/skills/factory-loop/SKILL.md](.claude/skills/factory-loop/SKILL.md) | Polls issues: read → 👍 → answer, or branch → do the work → PR → manual approval → merge → close |
 
 ### Projects
 

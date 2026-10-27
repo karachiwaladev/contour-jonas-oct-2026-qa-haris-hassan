@@ -69,7 +69,7 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 1. Add a task; it appears in the list, and an empty or whitespace-only title does nothing.
 2. Tick it; it is struck through and moves below the open tasks. Delete removes it.
 3. Add a task with a past due date and the tags `Home, bills`. It shows "Overdue · <date>" in red and the chips `#home` and `#bills`.
-4. A task due today shows "Due today". Open tasks are ordered overdue, then today, then later, then undated.
+4. A task due today shows "Due today". Open tasks are ordered by priority (High, Medium, Low), then overdue, today, later and undated.
 5. The tags `Work, work , URGENT,` are saved as `work` and `urgent`.
 6. The **Active** and **Completed** buttons show only open or only done tasks. The counter adds "showing N".
 7. The tag dropdown lists each tag with its count. Picking one narrows the list and combines with the status filter.
