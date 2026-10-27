@@ -571,6 +571,57 @@ async function e2e() {
       }
     });
 
+    // TC-36 log entries keep the order things happened (code review round 2 #1)
+    await tc("TC-36", "log entries keep the order things happened", async () => {
+      await fresh([["Bread"]]);
+      await tag("TC-36");
+      // Scenario 1: add a task, type, hide the page, all within 400 ms.
+      const t0 = Date.now();
+      await ev(`const f = id => document.getElementById(id); f("task-title").value = "Oat milk"; f("new-task").requestSubmit();
+        for (let i = 0; i < 100 && !(await TodoDB.all()).some(t => t.title === "Oat milk"); i++) await T.wait(5);`);
+      await type("milk", 10);
+      // Headless pages stay "visible", so report hidden and fire the event as a tab switch would.
+      await ev(`Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" });
+        document.dispatchEvent(new Event("visibilitychange")); delete document.visibilityState;`);
+      const within = Date.now() - t0;
+      await ev(`await T.wait(50);`);
+      const order = await ev(`return (await T.entries("TC-36")).filter(e => ["task.add", "ui.filter_search"].includes(e.action))
+        .map(e => e.action + (e.action === "ui.filter_search" ? ":" + e.changes.search : ""));`);
+      await settle();
+      await collect();
+      // Scenario 2: type, then press Clear log within 400 ms.
+      await clearBox(); await sleep(100);
+      const t1 = Date.now();
+      await type("milk", 10);
+      await ev(`document.getElementById("log-clear").click();`);
+      const within2 = Date.now() - t1;
+      await settle();
+      const after = await ev(`return (await TodoLog.all()).map(e => e.action);`);
+      check("TC-36", "task.add before ui.filter_search after a hide; Clear log leaves only log.clear",
+        JSON.stringify(order) === JSON.stringify(["task.add", "ui.filter_search:set"]) && JSON.stringify(after) === '["log.clear"]' &&
+        within < 400 && within2 < 400, JSON.stringify({ order, within, after, within2 }));
+      await collect();
+    });
+
+    // TC-37 a search typed during a failed reload still applies (code review round 2 #2)
+    await tc("TC-37", "a search typed during a failed reload still applies", async () => {
+      await fresh([["Milk"], ["Bread"]]);
+      await tag("TC-37");
+      await ev(`window.__realAll = TodoDB.all; let calls = 0;
+        TodoDB.all = async (...a) => { if (calls++ === 0) { await T.wait(250); throw new Error("TC-37 injected failure"); } return window.__realAll.apply(TodoDB, a); };
+        T.items("Bread")[0].querySelector("input[type=checkbox]").click(); await T.wait(30);`);
+      await type("milk", 10);
+      await sleep(500);
+      r = await ev(`const box = document.getElementById("error");
+        const res = { t: T.titles(), box: box.hidden ? null : box.textContent, c: T.count() };
+        TodoDB.all = window.__realAll; box.hidden = true; return res;`);
+      await settle();
+      check("TC-37", "list shows only Milk from the last loaded tasks; error box explains the load failure",
+        JSON.stringify(r.t) === '["Milk"]' && /load your tasks/i.test(r.box || "") && /showing 1/.test(r.c), JSON.stringify(r));
+      await ev(`await render();`);
+      await collect();
+    });
+
     // Screenshots for the PR (not test cases).
     if (process.env.SCREENSHOTS) {
       await ev(`TodoLog.setTestCase(null);`);
@@ -583,7 +634,8 @@ async function e2e() {
       await shot("03-due-next-7-days.png");
     }
 
-    const unexpected = consoleErrors.slice();
+    // TC-37 makes a task load fail on purpose; the page reports it in the console too.
+    const unexpected = consoleErrors.filter((m) => !/TC-\d+ injected failure/.test(m));
     if (layout30) check("TC-30", "375 px: no horizontal scroll, filter bar wraps; no console errors in the run",
       layout30.sw <= layout30.vw && layout30.bodySw <= layout30.vw && layout30.overflow.length === 0 && layout30.n >= 5 &&
       JSON.stringify(layout30.t) === '["Buy milk"]' && unexpected.length === 0, JSON.stringify({ layout30, unexpected }));
@@ -594,7 +646,7 @@ async function e2e() {
     await b.close();
   }
   // Every case gets a line, even if the run stopped before it.
-  for (let n = 1; n <= 35; n++) {
+  for (let n = 1; n <= 37; n++) {
     if (n === 31) continue; // TC-31 is the regression run, checked separately
     const id = "TC-" + String(n).padStart(2, "0");
     if (!results.some((x) => x.id === id)) check(id, "case", false, ran.has(id) ? "no result" : "did not run");

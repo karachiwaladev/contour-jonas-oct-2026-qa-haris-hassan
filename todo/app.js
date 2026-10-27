@@ -21,8 +21,9 @@ const searchInput = document.getElementById("search-filter");
 const dueFilter = document.getElementById("due-filter");
 
 // Filters reset on reload by design (ticket #5 scope).
-// `search` is the trimmed query ("" = none); `due` is ""|overdue|today|week|none.
-const filters = { status: "all", tag: "", priority: "", due: "", search: "" };
+// `search` is the parsed query key ("" = none) and `needle` its matcher (see parseSearch);
+// `due` is ""|overdue|today|week|none.
+const filters = { status: "all", tag: "", priority: "", due: "", search: "", needle: null };
 
 // The open task being edited inline (at most one), or null.
 let editingId = null;
@@ -49,7 +50,7 @@ function clearError(source) {
 // The action log is best-effort: if logger.js didn't load, use a no-op stand-in
 // so the app itself keeps working.
 const Log = typeof TodoLog !== "undefined" ? TodoLog : {
-  log() {}, logNow() {}, claimUserToken: () => null, recent: async () => [], count: async () => 0,
+  log() {}, setPending() {}, clearPending() {}, writePending() {}, writePendingNow() {}, claimUserToken: () => null, recent: async () => [], count: async () => 0,
   exportJSONL: async () => "", clear: async () => {}, flush: async () => {},
 };
 
@@ -58,33 +59,32 @@ const Log = typeof TodoLog !== "undefined" ? TodoLog : {
 // directly can't pass it (they are logged as "api").
 const USER = Log.claimUserToken();
 
-// Search is logged only as "set" or "cleared", never the query, once typing
-// pauses (SEARCH_LOG_DELAY) and only if that state changed since the last entry.
-// Clearing is logged at once. A pending entry is written before any other
-// entry from this page (and when the page is hidden or unloaded), so the log
-// keeps the order things happened in.
+// Search is logged only as "set" or "cleared", never the query: "set" once
+// typing pauses (SEARCH_LOG_DELAY) if the query differs from the last one
+// logged (so refining it logs another "set"), "cleared" at once. TodoLog holds
+// the pending "set" and writes it before any later entry, so the log keeps the
+// order things happened in.
 const SEARCH_LOG_DELAY = 400;
-let searchLogged = "";
-let searchLogTimer = null;
+let searchLogged = ""; // the query of the last search entry written
 
-// `now`: write synchronously (page unload), see TodoLog.logNow.
-function logSearch(now = false) {
-  clearTimeout(searchLogTimer);
-  searchLogTimer = null;
-  if (filters.search === searchLogged) return;
-  searchLogged = filters.search;
-  const entry = { action: "ui.filter_search", actor: USER, changes: { search: filters.search ? "set" : "cleared" } };
-  if (now === true) Log.logNow(entry);
-  else Log.log(entry);
-}
-
-function flushSearchLog(now = false) {
-  if (searchLogTimer !== null) logSearch(now);
+function logSearchChange() {
+  const q = filters.search;
+  if (!q) {
+    Log.clearPending();
+    if (searchLogged) {
+      searchLogged = "";
+      Log.log({ action: "ui.filter_search", actor: USER, changes: { search: "cleared" } });
+    }
+  } else if (q === searchLogged) {
+    Log.clearPending(); // back to what is already logged
+  } else {
+    Log.setPending({ action: "ui.filter_search", actor: USER, changes: { search: "set" } }, SEARCH_LOG_DELAY,
+      () => { searchLogged = q; });
+  }
 }
 
 // Every other entry this page logs goes through here (as the user).
 function logUser(entry) {
-  flushSearchLog();
   Log.log({ ...entry, actor: USER });
 }
 
@@ -95,7 +95,6 @@ function logUser(entry) {
 // Resolves true if the action succeeded.
 async function act(what, fn, action, taskId = null) {
   let ok = true;
-  flushSearchLog(); // the data layer logs this action; a pending search entry goes first
   try {
     await fn();
     clearError();
@@ -235,7 +234,6 @@ function editItem(task) {
     }
     savingIds.add(task.id);
     cancel.disabled = true;
-    flushSearchLog();
     try {
       await TodoDB.update(task.id, { title: title.value, due: due.value || null, tags: tags.value,
         repeat: repeat.value, priority: priority.value }, USER);
@@ -403,24 +401,18 @@ function matchesDue(task, ctx) {
   return true;
 }
 
-// The query as the filter uses it: trimmed; "#" plus the tag text for a
-// tags-only search ("# work" -> "#work"); "" (no search) if nothing is left.
-function effectiveQuery(raw) {
+// Parse the search box once: trimmed; a leading "#" (then trimmed again)
+// searches tag names only. `key` identifies the search ("" = none, also for a
+// bare "#"); `needle` is what matchesSearch uses. Matching is a plain,
+// case-insensitive substring, never a RegExp from user text, and uses
+// toLowerCase() like TodoDB.normalizeTags, so the browser's locale doesn't
+// change what matches.
+function parseSearch(raw) {
   const q = String(raw).trim();
-  if (!q.startsWith("#")) return q;
-  const rest = q.slice(1).trim();
-  return rest ? `#${rest}` : "";
-}
-
-// Search: a case-insensitive substring of the title or any tag; a leading "#"
-// searches tag names only. Plain string matching, never a RegExp from user
-// text, and toLowerCase() like TodoDB.normalizeTags, so the browser's locale
-// doesn't change what matches.
-function searchNeedle() {
-  const q = filters.search;
-  if (!q) return null;
   const tagsOnly = q.startsWith("#");
-  return { tagsOnly, text: (tagsOnly ? q.slice(1) : q).toLowerCase() };
+  const text = tagsOnly ? q.slice(1).trim() : q;
+  if (!text) return { key: "", needle: null };
+  return { key: tagsOnly ? `#${text}` : text, needle: { tagsOnly, text: text.toLowerCase() } };
 }
 
 function matchesSearch(task, needle) {
@@ -442,29 +434,41 @@ function matches(task, ctx) {
 // Each render reads asynchronously; only the newest one may draw, so a slow,
 // older read can never overwrite a newer list.
 let renderSeq = 0;
-let loading = 0;       // reads in flight
-let lastTasks = null;  // the last list read from storage
+let loading = 0;          // reads in flight
+let lastTasks = null;     // the last list read from storage
+let listRequested = false; // a { reload: false } redraw is waiting for a read in flight
 
-// Redraw. By default re-reads storage; { reload: false } (search and Due
-// changes) re-filters the last list read instead. While a read is in flight
-// that is a no-op: the read draws with the current filters when it lands.
+// Redraw. By default re-reads storage and redraws everything. { reload: false }
+// (search and Due changes) re-filters the last list read and redraws only the
+// list, counter and empty message; while a read is in flight it waits for that
+// read, which honours it even if the read fails or is superseded.
 async function render({ reload = true } = {}) {
   if (!reload && lastTasks) {
-    if (!loading) draw(lastTasks);
+    if (loading) listRequested = true;
+    else drawList(lastTasks);
     return;
   }
   const seq = ++renderSeq;
-  let tasks;
+  let tasks, failed = null;
   loading++;
   try {
     tasks = await TodoDB.all();
   } catch (err) {
-    if (seq === renderSeq) showError("load your tasks", err, "load");
-    return;
+    failed = err;
   } finally {
     loading--;
   }
-  if (seq !== renderSeq) return;
+  if (seq !== renderSeq) {
+    // Superseded: the newer read draws, unless it has already finished.
+    if (listRequested && !loading && lastTasks) { listRequested = false; drawList(lastTasks); }
+    return;
+  }
+  listRequested = false;
+  if (failed) {
+    showError("load your tasks", failed, "load");
+    if (lastTasks) drawList(lastTasks); // keep the current filters applied to what we have
+    return;
+  }
   lastTasks = tasks;
   clearError("load");
   draw(tasks);
@@ -473,10 +477,15 @@ async function render({ reload = true } = {}) {
 function draw(tasks) {
   renderTagOptions(tasks);
   for (const b of statusButtons) b.setAttribute("aria-pressed", String(b.dataset.status === filters.status));
+  drawList(tasks);
+  if (activity.open) renderActivity();
+}
 
-  const t = today();
-  const ctx = { today: t, weekEnd: Recurrence.addDays(t, 6), needle: searchNeedle() };
-  const shown = tasks.filter((t) => matches(t, ctx)).sort(compareTasks);
+// The task list, counter and empty message for the current filters.
+function drawList(tasks) {
+  const todayStr = today();
+  const ctx = { today: todayStr, weekEnd: Recurrence.addDays(todayStr, 6), needle: filters.needle };
+  const shown = tasks.filter((task) => matches(task, ctx)).sort(compareTasks);
   list.replaceChildren(...shown.map(taskItem));
 
   const filtered = filters.status !== "all" || filters.tag !== "" || filters.priority !== "" ||
@@ -484,11 +493,10 @@ function draw(tasks) {
   empty.hidden = shown.length > 0;
   empty.textContent = tasks.length === 0 ? "No tasks yet. Add one above." : "No tasks match this filter.";
 
-  const open = tasks.filter((t) => !t.done).length;
+  const open = tasks.filter((task) => !task.done).length;
   count.textContent = tasks.length
     ? `${open} of ${tasks.length} left` + (filtered ? ` · showing ${shown.length}` : "")
     : "";
-  if (activity.open) renderActivity();
 }
 
 // ---- Activity log panel ------------------------------------------------------
@@ -548,7 +556,6 @@ activity.addEventListener("toggle", () => { if (activity.open) renderActivity();
 
 document.getElementById("log-export").addEventListener("click", async () => {
   try {
-    flushSearchLog(); // so the export includes it
     const text = await Log.exportJSONL();
     const url = URL.createObjectURL(new Blob([text ? text + "\n" : ""], { type: "application/x-ndjson" }));
     const link = document.createElement("a");
@@ -564,7 +571,6 @@ document.getElementById("log-export").addEventListener("click", async () => {
 });
 
 document.getElementById("log-clear").addEventListener("click", async () => {
-  flushSearchLog();
   await Log.clear({ actor: USER });
   renderActivity();
 });
@@ -625,19 +631,16 @@ dueFilter.addEventListener("change", () => {
   render({ reload: false });
 });
 
-// Search filters as you type (see logSearch for how it is logged). Clearing,
-// however it happens (Escape, the box's clear button, deleting the text),
-// logs at once.
+// Search filters as you type (see logSearchChange for how it is logged).
+// Clearing, however it happens (Escape, the box's clear button, deleting the
+// text), logs at once.
 function onSearchChange() {
-  const q = effectiveQuery(searchInput.value);
-  if (q !== filters.search) {
-    filters.search = q;
-    render({ reload: false });
-  }
-  clearTimeout(searchLogTimer);
-  searchLogTimer = null;
-  if (q) searchLogTimer = setTimeout(logSearch, SEARCH_LOG_DELAY);
-  else logSearch();
+  const { key, needle } = parseSearch(searchInput.value);
+  if (key === filters.search) return;
+  filters.search = key;
+  filters.needle = needle;
+  render({ reload: false });
+  logSearchChange();
 }
 
 searchInput.addEventListener("input", onSearchChange);
@@ -650,9 +653,10 @@ searchInput.addEventListener("keydown", (e) => {
   onSearchChange();
 });
 
-// Don't lose a pending search entry when the page goes away.
-window.addEventListener("pagehide", () => flushSearchLog(true));
-document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") flushSearchLog(true); });
+// A pending search entry is written when the page is hidden, and on unload
+// synchronously if possible (a queued write would be dropped there).
+window.addEventListener("pagehide", () => Log.writePendingNow());
+document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden") Log.writePending(); });
 
 // Filters reset on reload: don't let the browser restore old control values.
 searchInput.value = "";

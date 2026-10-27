@@ -112,5 +112,13 @@
   ],
   "TC-35": [
     "ui.filter_search@user"
+  ],
+  "TC-36": [
+    "task.add@user",
+    "ui.filter_search@user"
+  ],
+  "TC-37": [
+    "task.complete@user",
+    "ui.filter_search@user"
   ]
 }
