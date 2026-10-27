@@ -1,0 +1,83 @@
+{
+  "suite": "personas/accessibility-ana",
+  "generatedAt": "2026-10-27T07:54:25.176Z",
+  "ok": true,
+  "summary": {
+    "cases": 7,
+    "pass": 5,
+    "unit": 0,
+    "skipped": 2,
+    "notExecuted": 0,
+    "incomplete": 0,
+    "unexpectedError": 0,
+    "entries": 16,
+    "malformed": 0,
+    "unknown": 0
+  },
+  "cases": [
+    {
+      "id": "ANA-01",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "ANA-02",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "ANA-03",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "ANA-04",
+      "auto": "e2e",
+      "status": "skipped",
+      "note": "no log assertion (spec: '—'); the injected storage failure is logged as task.add:error"
+    },
+    {
+      "id": "ANA-05",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "ANA-06",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "ANA-07",
+      "auto": "manual",
+      "status": "skipped",
+      "note": "manual: real screen-reader walkthrough"
+    }
+  ],
+  "malformed": [],
+  "unknown": []
+}

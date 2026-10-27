@@ -1,0 +1,7 @@
+{
+  "PRIYA-01": ["task.add@user", "task.complete@user"],
+  "PRIYA-02": ["ui.filter_tag@user"],
+  "PRIYA-03": ["task.edit@user"],
+  "PRIYA-04": ["log.export@user"],
+  "PRIYA-05": ["log.clear@user"]
+}

@@ -1,0 +1,7 @@
+{
+  "MAL-01": ["task.add@user"],
+  "MAL-02": ["task.edit@user"],
+  "MAL-03": [],
+  "MAL-04": ["task.delete@api"],
+  "MAL-05": []
+}

@@ -64,6 +64,8 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 
 `node todo/tests/issue-7/run.js` runs the recurring-task suite (TC-01–TC-42): unit tests in Node, then end-to-end tests in headless Chrome. It needs Node 18+, Python 3 and Chrome; set `CHROME_PATH` if Chrome isn't in the default location. Set `SCREENSHOTS=<dir>` to save screenshots.
 
+`node todo/tests/personas/run-all.js` runs the 11 user-persona suites (`--only <name>` for one) and prints pass/fail/finding/manual per persona; findings and manual cases (Hostile Hank, ANA-07) don't fail the run. See `tests/personas/test-cases.md`.
+
 ## Manual test checklist
 
 1. Add a task; it appears in the list, and an empty or whitespace-only title does nothing.

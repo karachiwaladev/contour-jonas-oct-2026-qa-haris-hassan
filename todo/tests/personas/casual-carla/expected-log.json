@@ -1,0 +1,8 @@
+{
+  "CARLA-01": [],
+  "CARLA-02": ["task.add@user"],
+  "CARLA-03": [],
+  "CARLA-04": ["task.complete@user"],
+  "CARLA-05": ["task.delete@user"],
+  "CARLA-06": []
+}

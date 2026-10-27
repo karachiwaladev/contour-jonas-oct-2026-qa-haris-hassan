@@ -1,0 +1,84 @@
+{
+  "suite": "personas/procrastinating-pete",
+  "generatedAt": "2026-10-27T07:54:09.583Z",
+  "ok": true,
+  "summary": {
+    "cases": 6,
+    "pass": 5,
+    "unit": 0,
+    "skipped": 1,
+    "notExecuted": 0,
+    "incomplete": 0,
+    "unexpectedError": 0,
+    "entries": 29,
+    "malformed": 0,
+    "unknown": 0
+  },
+  "cases": [
+    {
+      "id": "PETE-01",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "PETE-02",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "PETE-03",
+      "auto": "e2e",
+      "status": "skipped",
+      "note": "no log assertion (spec: '— (no successful edit)'); the rejected save logs task.edit:error, and run.js checks no successful task.edit was logged"
+    },
+    {
+      "id": "PETE-04",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "PETE-05",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.edit",
+        "test.case_start"
+      ]
+    },
+    {
+      "id": "PETE-06",
+      "auto": "e2e",
+      "status": "pass",
+      "missing": [],
+      "unexpected": [],
+      "actions": [
+        "task.add",
+        "task.complete",
+        "task.edit",
+        "task.spawn",
+        "test.case_start"
+      ]
+    }
+  ],
+  "malformed": [],
+  "unknown": []
+}

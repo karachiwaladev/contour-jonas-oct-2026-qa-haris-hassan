@@ -39,7 +39,8 @@ function parseSpec(specText) {
       continue;
     }
     const id = cells[idCol];
-    if (!/^TC-\d+$/.test(id || "")) continue; // separator rows and anything else
+    // Case ids: "TC-12" or a prefixed id such as "CARLA-01"; skips separator rows and anything else.
+    if (!/^[A-Z]+-\d+$/.test(id || "")) continue;
     cases.push({ id, auto: autoCol === -1 ? "e2e" : (cells[autoCol] || "").toLowerCase() });
   }
   return cases;

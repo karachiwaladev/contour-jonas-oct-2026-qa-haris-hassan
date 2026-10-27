@@ -1,0 +1,9 @@
+{
+  "RITA-01": ["task.complete@user", "task.spawn@user"],
+  "RITA-02": ["task.add@user"],
+  "RITA-03": ["task.complete@user", "task.spawn@user"],
+  "RITA-04": [],
+  "RITA-05": ["task.stop_repeating@user", "task.complete@user"],
+  "RITA-06": ["task.reopen@user", "task.copy_removed@user"],
+  "RITA-07": ["task.reopen@user", "task.become_oneoff@user"]
+}

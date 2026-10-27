@@ -1,0 +1,9 @@
+{
+  "ANA-01": [],
+  "ANA-02": [],
+  "ANA-03": [],
+  "ANA-04": { "skip": "no log assertion (spec: '—'); the injected storage failure is logged as task.add:error" },
+  "ANA-05": [],
+  "ANA-06": [],
+  "ANA-07": { "skip": "manual: real screen-reader walkthrough" }
+}

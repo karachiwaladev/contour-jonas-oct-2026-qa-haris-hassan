@@ -1,0 +1,8 @@
+{
+  "BOB-01": ["task.add@api", "task.complete@api", "task.add@user"],
+  "BOB-02": ["task.add"],
+  "BOB-03": ["task.add@api", "task.edit:error@api"],
+  "BOB-04": [],
+  "BOB-05": [],
+  "BOB-06": ["task.complete@api", "task.spawn@api"]
+}

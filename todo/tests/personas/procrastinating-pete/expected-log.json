@@ -1,0 +1,8 @@
+{
+  "PETE-01": ["task.add@user"],
+  "PETE-02": ["task.edit@user"],
+  "PETE-03": { "skip": "no log assertion (spec: '— (no successful edit)'); the rejected save logs task.edit:error, and run.js checks no successful task.edit was logged" },
+  "PETE-04": [],
+  "PETE-05": ["task.edit@user"],
+  "PETE-06": ["task.edit@user", "task.complete@user", "task.spawn@user"]
+}
