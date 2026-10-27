@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. Each end-to-end case is tagged in the action log and checked by the eval. **Expected log** uses the eval syntax `action[:error][@actor]`; `expected-log.json` holds the same expectations for the eval.
 
-**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-27** (31 cases). TC-32–TC-35 were added after the code review and **approved by hariscontour-gif on 2026-10-27**. TC-36–TC-37 were added after the second code-review round and **approved by hariscontour-gif on 2026-10-27**. Not executed yet.
+**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-27** (31 cases). TC-32–TC-35 were added after the code review and **approved by hariscontour-gif on 2026-10-27**. TC-36–TC-37 were added after the second code-review round and **approved by hariscontour-gif on 2026-10-27**. After the third round, hariscontour-gif approved **logging search on and off only**: `set` when the box goes from empty to a query and `cleared` when it empties, both at once, with nothing new logged while a query is refined; TC-38–TC-39 were added and approved on 2026-10-27. Not executed yet.
 
 `T` means today. "Search" is the new search box; "Due" is the new due-date filter.
 
@@ -45,6 +45,8 @@ Written from the approved plan **before** implementation. Each end-to-end case i
 | TC-35 | Matching doesn't depend on the browser's locale (code review #4) | Edge | Browser locale `tr-TR`; task "IDEA" tagged `inbox` | Search `#INBOX`, then `idea` | Both find the task | ui.filter_search@user | e2e | ⏳ |
 | TC-36 | Log entries keep the order things happened (code review round 2 #1) | Regression | Tasks exist | Add a task, type `milk`, and hide the page (visibilitychange) within 400 ms; separately, type `milk` and press **Clear log** within 400 ms | First: `task.add` is logged before `ui.filter_search`. Second: after the clear, the log holds only `log.clear`, with no search entry written before or after it | task.add@user, ui.filter_search@user | e2e | ⏳ |
 | TC-37 | A search typed during a failed reload still applies (code review round 2 #2) | Regression | Tasks "Milk" and "Bread"; the next `TodoDB.all()` rejects | Tick "Bread" (starts a reload that fails), then type `milk` straight away | The list shows only "Milk", filtered from the last loaded tasks, and the page error box explains the load failure | task.complete@user, ui.filter_search@user | e2e | ⏳ |
+| TC-38 | The Activity panel shows filter entries at once (code review round 3 #1) | Regression | Activity log panel open; tasks exist | Change Due to Overdue; then type `milk` in the search box | The panel lists the new `ui.filter_due` entry, then the `ui.filter_search` `set` entry, without any other action | ui.filter_due@user, ui.filter_search@user | e2e | ⏳ |
+| TC-39 | A failed first load isn't retried on every keystroke (code review round 3 #2) | Regression | The first `TodoDB.all()` rejects | Type `groceries` | `TodoDB.all()` is called no more than once more in total, and the error box shows one message (not one per key) | ui.filter_search@user | e2e | ⏳ |
 
 ## Coverage
 
