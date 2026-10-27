@@ -2,7 +2,7 @@
 
 Written from the approved plan **before** implementation. Each end-to-end case is tagged in the action log and checked by the eval. **Expected log** uses the eval syntax `action[:error][@actor]`; `expected-log.json` holds the same expectations for the eval.
 
-**Status:** Awaiting review. Not executed yet.
+**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-27** (31 cases). Not executed yet.
 
 `T` means today. "Search" is the new search box; "Due" is the new due-date filter.
 
