@@ -1,6 +1,6 @@
 # Persona test suites: who they are
 
-**Status:** Awaiting review. Not executed yet.
+**Status:** **Reviewed and approved by hariscontour-gif on 2026-10-27.** The 11 user personas are automated; Hostile Hank is run by hand.
 
 Twelve personas, each a realistic user (or attacker) of the browser todo app in
 `todo/`. The goal of the persona suites is **end-to-end journeys**: a plausible

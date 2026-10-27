@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Accessibility Ana (ANA-01..07): names, focus order, alerts, contrast. See ../test-cases.md.
-// ANA-06 (dark-theme contrast) is a known weakness: reported as FINDING, not FAIL.
+// ANA-05 and ANA-06 (light/dark contrast) are known weaknesses: reported as FINDING, not FAIL.
 // ANA-07 needs a real screen reader and is printed as MANUAL.
 //   node todo/tests/personas/accessibility-ana/run.js
 const { runPersona } = require("../lib");
@@ -23,7 +23,7 @@ const CONTRAST = `
 const below = (r, min = 4.5) => Object.entries(r).filter(([, v]) => typeof v !== "number" || v < min).map(([k, v]) => `${k} ${v}:1`);
 
 runPersona({
-  dir: __dirname, prefix: "ANA", findingIds: ["ANA-06"],
+  dir: __dirname, prefix: "ANA", findingIds: ["ANA-05", "ANA-06"],
   async e2e({ ev, open, tag, kase, manual, send }) {
     let r;
     await open();
