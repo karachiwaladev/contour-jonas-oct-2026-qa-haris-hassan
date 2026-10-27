@@ -78,6 +78,13 @@ async function e2e() {
   // Replace the search text: clear, then type.
   const search = async (text, gap = 30) => { await clearBox(); await type(text, gap); await sleep(150); };
   const settle = () => sleep(DEBOUNCE_WAIT);
+  // Reload the page like a person (F5), then reinstall the test helpers.
+  const reload = async () => {
+    await send("Page.reload", {});
+    await sleep(800);
+    for (let i = 0; i < 30; i++) { if (await ev(`return document.readyState === "complete" && typeof window.render === "function";`).catch(() => false)) break; await sleep(100); }
+    await sleep(400); await ev(H);
+  };
   // Run one case; an exception fails only that case.
   const ran = new Set();
   const tc = async (id, name, fn) => {
@@ -330,10 +337,7 @@ async function e2e() {
       await ev(`await T.filter("due-filter", "overdue");`);
       const before20 = await ev(`return { v: T.search().value, due: document.getElementById("due-filter").value, n: T.titles().length };`);
       await tag("TC-20");
-      await send("Page.reload", {});
-      await sleep(800);
-      for (let i = 0; i < 30; i++) { if (await ev(`return document.readyState === "complete" && typeof window.render === "function";`).catch(() => false)) break; await sleep(100); }
-      await sleep(400); await ev(H);
+      await reload();
       r = await ev(`const all = await TodoDB.all(); return { v: T.search().value, due: document.getElementById("due-filter").value, n: T.titles().length, total: all.length, c: T.count() };`);
       check("TC-20", "after reload: box empty, Due Any, all tasks show",
         before20.v === "milk" && before20.due === "overdue" && before20.n < r.total &&
@@ -482,6 +486,85 @@ async function e2e() {
       }
     });
 
+    // TC-32 a pending search log entry is written first (code review #1)
+    await tc("TC-32", "a pending search log entry is written first", async () => {
+      await fresh([["Milk"], ["Bread"]]);
+      await tag("TC-32");
+      // Part 1: type, then tick within 100 ms (before the debounce fires).
+      await type("milk", 10);
+      await ev(`T.items("Milk")[0].querySelector("input[type=checkbox]").click(); await T.wait(); await TodoLog.flush();`);
+      const order = await ev(`return (await T.entries("TC-32")).filter(e => ["ui.filter_search", "task.complete"].includes(e.action))
+        .map(e => e.action + ":" + (e.action === "ui.filter_search" ? e.changes.search : e.outcome));`);
+      await settle();
+      // Part 2: clear (logged at once), type again, reload within 100 ms.
+      await clearBox(); await sleep(100);
+      const setsBefore = (await searchEntries("TC-32")).filter((x) => x === "set").length;
+      await type("milk", 10);
+      await reload();
+      const after = await searchEntries("TC-32");
+      const setsAfter = after.filter((x) => x === "set").length;
+      check("TC-32", "search 'set' logged before task.complete; a pending 'set' survives a quick reload",
+        JSON.stringify(order) === JSON.stringify(["ui.filter_search:set", "task.complete:ok"]) && setsAfter === setsBefore + 1 &&
+        after[after.length - 1] === "set", JSON.stringify({ order, setsBefore, after }));
+      await collect();
+    });
+
+    // TC-33 clearing with the box's native clear button logs at once (code review #2)
+    await tc("TC-33", "clearing with the clear button logs at once", async () => {
+      await open();
+      await search("milk"); await settle();
+      const logged = await ev(`return (await TodoLog.all()).filter(e => e.action === "ui.filter_search").pop().changes.search;`);
+      await tag("TC-33");
+      // Click the native clear button (inside the box, at its right edge).
+      const box = await ev(`const s = T.search(); s.focus(); const r = s.getBoundingClientRect(); return { x: r.right, y: r.top + r.height / 2 };`);
+      const at = { x: Math.round(box.x - 18), y: Math.round(box.y) };
+      await send("Input.dispatchMouseEvent", { type: "mouseMoved", ...at });
+      await send("Input.dispatchMouseEvent", { type: "mousePressed", ...at, button: "left", clickCount: 1 });
+      await send("Input.dispatchMouseEvent", { type: "mouseReleased", ...at, button: "left", clickCount: 1 });
+      await ev(`await T.filter("due-filter", "overdue");`); // well within 100 ms of the clear (no wait in between)
+      const r33 = await ev(`const all = (await T.entries("TC-33")).filter(e => ["ui.filter_search", "ui.filter_due"].includes(e.action));
+        return { value: T.search().value, order: all.map(e => e.action + ":" + (e.changes.search || e.changes.due)) };`);
+      await ev(`await T.filter("due-filter", "");`);
+      check("TC-33", "clear button: 'cleared' logged before ui.filter_due",
+        logged === "set" && r33.value === "" && JSON.stringify(r33.order) === JSON.stringify(["ui.filter_search:cleared", "ui.filter_due:overdue"]),
+        JSON.stringify({ logged, r33 }));
+      await collect();
+    });
+
+    // TC-34 a bare # is no search (code review #3)
+    await tc("TC-34", "a bare # is no search", async () => {
+      await fresh([["Report", { tags: "work" }], ["Note", { tags: "home" }], ["Work out"]]);
+      await tag("TC-34");
+      const out = {};
+      await search("#"); out.hash = await ev(`return { n: T.titles().length, c: T.count() };`);
+      await search("#   "); out.hashSpaces = await ev(`return { n: T.titles().length, c: T.count() };`);
+      await search("# work"); out.hashWork = await ev(`return T.sorted();`);
+      await settle();
+      check("TC-34", "'#' and '#   ' show every task with no 'showing N'; '# work' shows only Report",
+        out.hash.n === 3 && !/showing/.test(out.hash.c) && out.hashSpaces.n === 3 && !/showing/.test(out.hashSpaces.c) &&
+        JSON.stringify(out.hashWork) === '["Report"]', JSON.stringify(out));
+      await collect();
+    });
+
+    // TC-35 matching doesn't depend on the browser's locale (code review #4)
+    await tc("TC-35", "matching doesn't depend on the browser's locale", async () => {
+      await fresh([["IDEA", { tags: "inbox" }], ["Other"]]);
+      await send("Emulation.setLocaleOverride", { locale: "tr-TR" });
+      try {
+        await open();
+        await tag("TC-35");
+        const turkish = await ev(`return "I".toLocaleLowerCase() === "ı";`); // the override is live: I -> dotless i
+        await search("#INBOX"); const inbox = await ev(`return T.sorted();`);
+        await search("idea"); const idea = await ev(`return T.sorted();`);
+        await settle();
+        check("TC-35", "under tr-TR, '#INBOX' and 'idea' both find IDEA",
+          turkish === true && JSON.stringify(inbox) === '["IDEA"]' && JSON.stringify(idea) === '["IDEA"]', JSON.stringify({ turkish, inbox, idea }));
+      } finally {
+        await send("Emulation.setLocaleOverride", {});
+        await collect();
+      }
+    });
+
     // Screenshots for the PR (not test cases).
     if (process.env.SCREENSHOTS) {
       await ev(`TodoLog.setTestCase(null);`);
@@ -505,7 +588,8 @@ async function e2e() {
     await b.close();
   }
   // Every case gets a line, even if the run stopped before it.
-  for (let n = 1; n <= 30; n++) {
+  for (let n = 1; n <= 35; n++) {
+    if (n === 31) continue; // TC-31 is the regression run, checked separately
     const id = "TC-" + String(n).padStart(2, "0");
     if (!results.some((x) => x.id === id)) check(id, "case", false, ran.has(id) ? "no result" : "did not run");
   }
