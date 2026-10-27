@@ -45,6 +45,8 @@
     </form>
 
     <div class="filters">
+      <input id="search-filter" class="search" type="search" placeholder="Search titles and tags (#tag for tags only)"
+        aria-label="Search tasks by title or tag" maxlength="200" autocomplete="off" spellcheck="false">
       <div id="status-filter" class="segmented" role="group" aria-label="Filter by status">
         <button type="button" data-status="all" aria-pressed="true">All</button>
         <button type="button" data-status="active" aria-pressed="false">Active</button>
@@ -58,6 +60,13 @@
           <option value="low">Low</option>
         </select>
         <select id="tag-filter" aria-label="Filter by tag"></select>
+        <select id="due-filter" aria-label="Filter by due date" autocomplete="off">
+          <option value="">Any due date</option>
+          <option value="overdue">Overdue</option>
+          <option value="today">Due today</option>
+          <option value="week">Next 7 days</option>
+          <option value="none">No due date</option>
+        </select>
       </div>
     </div>
 
