@@ -127,5 +127,10 @@
   ],
   "TC-39": [
     "ui.filter_search@user"
+  ],
+  "TC-40": [
+    "ui.filter_search@user",
+    "ui.filter_due@user",
+    "task.edit@user"
   ]
 }

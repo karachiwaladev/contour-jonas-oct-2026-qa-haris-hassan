@@ -43,7 +43,7 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 - The database open handles `onblocked` (another tab holds an older version: fail with a clear message, and close any late connection) and `onversionchange` (close and forget this connection so the next call reopens).
 - Storage failures are shown in the `#error` box (`role=alert`) as well as logged. `act()` wraps every storage action, and `render()` reports load failures there.
 - Filters (status AND one tag AND one priority AND due AND search) live in memory and reset on reload.
-- **Search:** the query is trimmed (blank = no search) and matched as a case-insensitive substring (`toLowerCase` like `normalizeTags`, so the locale doesn't matter, + `includes`, never a RegExp) of the title or any tag; a leading `#` searches tag names only, and a bare `#` is no search. Escape or the box's ✕ clears it. Search and Due changes re-filter the last list read and redraw only the list and counter (`render({ reload: false })`). They never start a read: if one is in flight, it redraws them even if it fails or is superseded, and after a failed first load they wait for the next full render. With the Activity panel open, a new search or Due entry refreshes it at once. Everything else re-reads storage.
+- **Search:** the query is trimmed (blank = no search) and matched as a case-insensitive substring (`toLowerCase` like `normalizeTags`, so the locale doesn't matter, + `includes`, never a RegExp) of the title or any tag; a leading `#` searches tag names only, and a bare `#` is no search. Escape or the box's ✕ clears it. A task being edited inline always stays listed while its form is open, whatever the filters, so its draft is never hidden; after Save or Cancel the filters apply to it again. Search and Due changes re-filter the last list read and redraw only the list and counter (`render({ reload: false })`). They never start a read: if one is in flight, it redraws them even if it fails or is superseded, and after a failed first load they wait for the next full render. With the Activity panel open, a new search or Due entry refreshes it at once. Everything else re-reads storage.
 - **Due filter:** Overdue = open tasks due before today (like the red badge), Due today, Next 7 days (today to today + 6), No due date.
 - **Stored data is untrusted.** `TodoDB` coerces every field on read: the repeat value is checked against a fixed list, invalid dates become `null`, tags are cleaned up, `createdAt` becomes a number, `anchorDay` becomes 1–31 or `null`, and the ids (`nextId`/`spawnedFrom`) become integers or `null`.
 - **Action log:**
@@ -59,7 +59,7 @@ Open `todo/index.html` in a browser, or serve the folder with `python -m http.se
 
 ## Tests
 
-`node todo/tests/issue-25/run.js` runs the search and due-filter suite (TC-01–TC-39). Its TC-31 runs the issue-15 suite, which runs issue-14 and issue-7, so one command checks everything (`--skip-regression` skips it).
+`node todo/tests/issue-25/run.js` runs the search and due-filter suite (TC-01–TC-40). Its TC-31 runs the issue-15 suite, which runs issue-14 and issue-7, so one command checks everything (`--skip-regression` skips it).
 
 `node todo/tests/issue-15/run.js` runs the task-priority suite (TC-01–TC-35). Its TC-24 runs the issue-14 suite, which in turn runs issue-7, so one command checks everything.
 

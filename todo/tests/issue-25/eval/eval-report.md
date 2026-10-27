@@ -1,7 +1,7 @@
 # Eval report: issue-25
 
-**Result: PASS**. 38 passed, 0 not executed, 0 incomplete, 0 with unexpected failures, 0 unit, 1 skipped. 284 log entries read, 0 malformed, 0 unknown case tags.
-Generated 2026-10-27T08:13:38.546Z.
+**Result: PASS**. 39 passed, 0 not executed, 0 incomplete, 0 with unexpected failures, 0 unit, 1 skipped. 294 log entries read, 0 malformed, 0 unknown case tags.
+Generated 2026-10-27T09:14:38.629Z.
 
 | Case | Auto | Status | Missing actions / note |
 |------|------|--------|------------------------|
@@ -44,3 +44,4 @@ Generated 2026-10-27T08:13:38.546Z.
 | TC-37 | e2e | ✅ pass |  |
 | TC-38 | e2e | ✅ pass |  |
 | TC-39 | e2e | ✅ pass |  |
+| TC-40 | e2e | ✅ pass |  |

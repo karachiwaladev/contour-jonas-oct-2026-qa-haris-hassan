@@ -21,9 +21,9 @@ const searchInput = document.getElementById("search-filter");
 const dueFilter = document.getElementById("due-filter");
 
 // Filters reset on reload by design (ticket #5 scope).
-// `search` is the parsed query key ("" = none) and `needle` its matcher (see parseSearch);
+// `search` is the parsed query key ("" = none; see parseSearch);
 // `due` is ""|overdue|today|week|none.
-const filters = { status: "all", tag: "", priority: "", due: "", search: "", needle: null };
+const filters = { status: "all", tag: "", priority: "", due: "", search: "" };
 
 // The open task being edited inline (at most one), or null.
 let editingId = null;
@@ -377,9 +377,10 @@ function matchesDue(task, ctx) {
   return true;
 }
 
-// Parse the search box once: trimmed; a leading "#" (then trimmed again)
-// searches tag names only. `key` identifies the search ("" = none, also for a
-// bare "#"); `needle` is what matchesSearch uses. Matching is a plain,
+// Parse a search: trimmed; a leading "#" (then trimmed again) searches tag
+// names only. `key` identifies the search ("" = none, also for a bare "#") and
+// is all `filters.search` keeps; `needle`, what matchesSearch uses, is derived
+// from it when drawing (a key parses to the same needle). Matching is a plain,
 // case-insensitive substring, never a RegExp from user text, and uses
 // toLowerCase() like TodoDB.normalizeTags, so the browser's locale doesn't
 // change what matches.
@@ -462,8 +463,10 @@ function draw(tasks) {
 // The task list, counter and empty message for the current filters.
 function drawList(tasks) {
   const todayStr = today();
-  const ctx = { today: todayStr, weekEnd: Recurrence.addDays(todayStr, 6), needle: filters.needle };
-  const shown = tasks.filter((task) => matches(task, ctx)).sort(compareTasks);
+  const ctx = { today: todayStr, weekEnd: Recurrence.addDays(todayStr, 6), needle: parseSearch(filters.search).needle };
+  // The task being edited stays listed while its form is open, whatever the
+  // filters, so the draft isn't hidden; after Save or Cancel they apply again.
+  const shown = tasks.filter((task) => matches(task, ctx) || (!task.done && task.id === editingId)).sort(compareTasks);
   list.replaceChildren(...shown.map(taskItem));
 
   const filtered = filters.status !== "all" || filters.tag !== "" || filters.priority !== "" ||
@@ -615,11 +618,10 @@ dueFilter.addEventListener("change", () => {
 // (Escape, the box's clear button, deleting the text). Refining a query logs
 // nothing, and the query itself is never logged.
 function onSearchChange() {
-  const { key, needle } = parseSearch(searchInput.value);
+  const { key } = parseSearch(searchInput.value);
   if (key === filters.search) return;
   const wasOn = filters.search !== "";
   filters.search = key;
-  filters.needle = needle;
   const toggled = wasOn !== (key !== "");
   if (toggled) logUser({ action: "ui.filter_search", changes: { search: key ? "set" : "cleared" } });
   render({ reload: false });

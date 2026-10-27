@@ -25,7 +25,7 @@
   const dayNumber = (p) => Date.UTC(p.y, p.m - 1, p.d) / 86400000;
   const daysInMonth = (y, m) => new Date(Date.UTC(y, m, 0)).getUTCDate();
 
-  function addDays(p, n) {
+  function addDaysParts(p, n) {
     const dt = new Date(Date.UTC(p.y, p.m - 1, p.d + n));
     return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
   }
@@ -63,13 +63,13 @@
     const cur = parse(due) || t;
 
     if (kind === "daily") {
-      const next = addDays(cur, 1);
+      const next = addDaysParts(cur, 1);
       return format(dayNumber(next) < dayNumber(t) ? t : next);
     }
     if (kind === "weekly") {
       const behind = dayNumber(t) - dayNumber(cur);
       const weeks = behind > 7 ? Math.ceil(behind / 7) : 1;
-      return format(addDays(cur, 7 * weeks));
+      return format(addDaysParts(cur, 7 * weeks));
     }
     // monthly
     const anchor = clampAnchor(anchorDay) || cur.d;
@@ -85,7 +85,7 @@
   }
 
   // "YYYY-MM-DD" `n` days after `ymd`, or null if `ymd` isn't a real date.
-  const addDaysYmd = (ymd, n) => { const p = parse(ymd); return p ? format(addDays(p, n)) : null; };
+  const addDaysYmd = (ymd, n) => { const p = parse(ymd); return p ? format(addDaysParts(p, n)) : null; };
 
   const api = { REPEATS, LABELS, normalizeRepeat, isValidDate, nextDue, today, clampAnchor, addDays: addDaysYmd,
     dayOf: (s) => (parse(s) || {}).d || null };

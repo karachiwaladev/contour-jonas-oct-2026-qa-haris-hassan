@@ -638,6 +638,29 @@ async function e2e() {
       await collect();
     });
 
+    // TC-40 a task being edited is never hidden by a filter (code review round 4)
+    await tc("TC-40", "a task being edited is never hidden by a filter", async () => {
+      await fresh([["Milk"], ["Bread"]]);
+      const id40 = await ev(`return (await TodoDB.all()).find(t => t.title === "Milk").id;`);
+      await tag("TC-40");
+      await ev(`T.item(${id40}).querySelector(".edit").click(); await T.wait(100);
+        const t = T.item(${id40}).querySelector(".edit-title"); t.value = "Draft"; t.dispatchEvent(new Event("input", { bubbles: true }));`);
+      const state = `const f = T.item(${id40}) && T.item(${id40}).querySelector(".edit-form");
+        return { form: !!f, draft: f && f.querySelector(".edit-title").value, bread: T.items("Bread").length };`;
+      await type("bread", 10); await sleep(200);
+      const afterSearch = await ev(state);
+      await ev(`await T.filter("due-filter", "overdue");`);
+      const afterDue = await ev(state);
+      const saved = await ev(`T.item(${id40}).querySelector(".edit-save").click(); await T.wait(300); await TodoLog.flush();
+        return { stored: (await T.get(${id40})).title, listed: !!T.item(${id40}), form: !!document.querySelector(".edit-form"), t: T.titles() };`);
+      await clearBox(); await ev(`await T.filter("due-filter", "");`);
+      check("TC-40", "edited Milk stays listed with 'Draft' under search and Due; after Save the filters hide it",
+        afterSearch.form && afterSearch.draft === "Draft" && afterSearch.bread === 1 &&
+        afterDue.form && afterDue.draft === "Draft" && afterDue.bread === 0 &&
+        saved.stored === "Draft" && !saved.listed && !saved.form && saved.t.length === 0, JSON.stringify({ afterSearch, afterDue, saved }));
+      await collect();
+    });
+
     // Screenshots for the PR (not test cases).
     if (process.env.SCREENSHOTS) {
       await ev(`TodoLog.setTestCase(null);`);
@@ -660,7 +683,7 @@ async function e2e() {
     await b.close();
   }
   // Every case gets a line, even if the run stopped before it.
-  for (let n = 1; n <= 39; n++) {
+  for (let n = 1; n <= 40; n++) {
     if (n === 31) continue; // TC-31 is the regression run, checked separately
     const id = "TC-" + String(n).padStart(2, "0");
     if (!results.some((x) => x.id === id)) check(id, "case", false, ran.has(id) ? "no result" : "did not run");
